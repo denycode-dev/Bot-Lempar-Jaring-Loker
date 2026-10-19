@@ -57,12 +57,36 @@ export async function launchCamoufoxBrowser(
 
   log(`🛡️ Meluncurkan Camoufox Stealth Browser (Firefox C++ Anti-Bot Engine)...`);
 
-  const rawContext = await Camoufox({
-    headless: isHeadless,
-    os: 'windows',
-    humanize: true,
-    user_data_dir: profilePath,
-  });
+  let rawContext: any;
+  try {
+    rawContext = await Camoufox({
+      headless: isHeadless,
+      os: 'windows',
+      humanize: true,
+      user_data_dir: profilePath,
+    });
+  } catch (launchErr: any) {
+    const errMsg = String(launchErr?.message || launchErr);
+    // If it crashed or failed due to locked profile / exitCode 4294967295 / process exit, perform recovery and retry once
+    if (
+      errMsg.includes('4294967295') ||
+      errMsg.includes('Failed to launch the browser process') ||
+      errMsg.includes('exitCode') ||
+      errMsg.includes('parent.lock')
+    ) {
+      log(`⚠️ Terdeteksi konflik proses/profile lock. Membersihkan kunci & mencoba ulang...`);
+      cleanupStaleProfileLocks(profilePath);
+      await new Promise(r => setTimeout(r, 600));
+      rawContext = await Camoufox({
+        headless: isHeadless,
+        os: 'windows',
+        humanize: true,
+        user_data_dir: profilePath,
+      });
+    } else {
+      throw launchErr;
+    }
+  }
 
   function wrapPage(page: any) {
     if (!page) return page;
@@ -163,38 +187,32 @@ export async function launchCamoufoxBrowser(
  * Removes stale lock files and terminates orphan processes that are holding locks on the userDataDir.
  */
 export function cleanupStaleProfileLocks(profilePath: string) {
-  // 1. On Windows, if Camoufox / Firefox or legacy Chrome crashed or was left orphan, terminate processes holding the folder
+  // 1. On Windows, terminate orphan camoufox processes instantly using taskkill /T (<20ms)
   if (process.platform === 'win32') {
     try {
-      const safeDir = profilePath.replace(/'/g, "''");
-      const psScript = `Get-CimInstance Win32_Process -Filter "Name = 'camoufox.exe' or Name = 'firefox.exe' or Name = 'chrome.exe' or Name = 'chromium.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*${safeDir}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
-      const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
-      execSync(`powershell -NoProfile -NonInteractive -EncodedCommand ${encoded}`, { stdio: 'ignore', timeout: 3000 });
+      execSync('taskkill /F /IM camoufox.exe /T', { stdio: 'ignore' });
     } catch {
-      // Non-blocking fallback
+      // Non-blocking fallback if no processes exist
     }
   }
 
-  // 2. Remove lock files
-  try {
-    const lockFiles = [
-      'SingletonLock',
-      'SingletonCookie',
-      'SingletonSocket',
-      'DevToolsActivePort',
-      'lockfile',
-      'parent.lock'
-    ];
-    for (const file of lockFiles) {
-      const fullPath = path.join(/*turbopackIgnore: true*/ profilePath, file);
-      try {
-        if (fs.existsSync(/*turbopackIgnore: true*/ fullPath) || fs.lstatSync(/*turbopackIgnore: true*/ fullPath).isSymbolicLink()) {
-          fs.unlinkSync(fullPath);
-        }
-      } catch {}
-    }
-  } catch (e) {
-    // ignore
+  // 2. Remove stale lock files safely using fs.rmSync
+  const lockFiles = [
+    'SingletonLock',
+    'SingletonCookie',
+    'SingletonSocket',
+    'DevToolsActivePort',
+    'lockfile',
+    'parent.lock',
+    '.parentlock'
+  ];
+  for (const file of lockFiles) {
+    const fullPath = path.join(/*turbopackIgnore: true*/ profilePath, file);
+    try {
+      if (fs.existsSync(/*turbopackIgnore: true*/ fullPath)) {
+        fs.rmSync(fullPath, { force: true });
+      }
+    } catch {}
   }
 }
 

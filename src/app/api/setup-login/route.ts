@@ -4,9 +4,11 @@ import { applyStealthToPage } from '@/lib/stealthHelper';
 
 declare global {
   var activeSetupBrowser: any;
+  var isLaunchingSetupBrowser: boolean | undefined;
 }
 
 export async function POST(request: Request) {
+  let isActionStart = false;
   try {
     const { action, profileFolderOverride } = await request.json();
 
@@ -21,6 +23,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: 'No browser running' });
     }
 
+    if (global.isLaunchingSetupBrowser) {
+      return NextResponse.json(
+        { success: false, error: 'Browser login sedang dalam proses peluncuran. Mohon tunggu sejenak...' },
+        { status: 409 }
+      );
+    }
+
     if (global.activeSetupBrowser) {
       // Periksa apakah browser benar-benar masih terhubung atau sudah ditutup manual oleh user
       const isConnected = typeof global.activeSetupBrowser.isConnected === 'function' 
@@ -33,6 +42,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: 'Browser login masih berjalan. Silakan klik "Tutup Browser" atau tutup jendelanya terlebih dahulu.' }, { status: 400 });
       }
     }
+
+    isActionStart = true;
+    global.isLaunchingSetupBrowser = true;
 
     // Launch Camoufox Stealth Browser in headful mode
     try {
@@ -86,6 +98,10 @@ export async function POST(request: Request) {
       console.error('Error running setup browser:', error);
       global.activeSetupBrowser = null;
       return NextResponse.json({ success: false, error: error.message || 'Failed to launch browser' }, { status: 500 });
+    } finally {
+      if (isActionStart) {
+        global.isLaunchingSetupBrowser = false;
+      }
     }
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

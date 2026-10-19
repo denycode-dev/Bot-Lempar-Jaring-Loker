@@ -293,6 +293,7 @@ export default function Home() {
   const [isBotRunning, setIsBotRunning] = useState(false);
   const [isSyncingProfile, setIsSyncingProfile] = useState(false);
   const [isSetupBrowserRunning, setIsSetupBrowserRunning] = useState(false);
+  const [isSetupBrowserLoading, setIsSetupBrowserLoading] = useState(false);
   const [appliedJobs, setAppliedJobs] = useState<AppliedJob[]>([]);
   const [selectedJobDetail, setSelectedJobDetail] = useState<AppliedJob | null>(null);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
@@ -871,8 +872,13 @@ export default function Home() {
   };
 
   const handleToggleSetupBrowser = async (profileFolder?: string) => {
+    if (isSetupBrowserLoading) return;
+    setIsSetupBrowserLoading(true);
     try {
       const action = isSetupBrowserRunning ? 'stop' : 'start';
+      if (action === 'start') {
+        toast.info('Sedang meluncurkan browser setup...', { duration: 3000 });
+      }
       const res = await fetch('/api/setup-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -883,7 +889,7 @@ export default function Home() {
       });
       const data = await res.json();
       if (data.success) {
-        setIsSetupBrowserRunning(!isSetupBrowserRunning);
+        setIsSetupBrowserRunning(action === 'start');
         if (action === 'start') {
           toast.success('Jendela browser dibuka. Silakan masuk ke akun Anda lalu tutup browser jika selesai.');
         } else {
@@ -895,6 +901,8 @@ export default function Home() {
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Kesalahan jaringan';
       toast.error(msg);
+    } finally {
+      setIsSetupBrowserLoading(false);
     }
   };
 
@@ -1837,14 +1845,27 @@ export default function Home() {
               </div>
               <button
                 onClick={() => handleToggleSetupBrowser()}
+                disabled={isSetupBrowserLoading || isBotRunning}
                 className={`w-full mt-2 py-2 px-3 rounded-xl text-xs font-medium flex items-center justify-center gap-2 transition ${
-                  isSetupBrowserRunning
+                  isSetupBrowserLoading
+                    ? 'opacity-60 cursor-not-allowed card-theme border text-muted-theme'
+                    : isSetupBrowserRunning
                     ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30'
                     : 'card-theme border text-main-theme hover:opacity-90 shadow-sm'
                 }`}
               >
-                <KeyRound className="w-3.5 h-3.5" />
-                <span>{isSetupBrowserRunning ? 'Tutup Browser' : 'Buka Browser Setup'}</span>
+                {isSetupBrowserLoading ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-orange-500" />
+                ) : (
+                  <KeyRound className="w-3.5 h-3.5" />
+                )}
+                <span>
+                  {isSetupBrowserLoading
+                    ? 'Membuka Browser...'
+                    : isSetupBrowserRunning
+                    ? 'Tutup Browser'
+                    : 'Buka Browser Setup'}
+                </span>
               </button>
             </div>
           </aside>
@@ -2024,14 +2045,27 @@ export default function Home() {
 
           <button
             onClick={() => handleToggleSetupBrowser()}
+            disabled={isSetupBrowserLoading || isBotRunning}
             className={`w-full mt-2 py-2 px-3 rounded-xl text-xs font-medium flex items-center justify-center gap-2 transition ${
-              isSetupBrowserRunning
+              isSetupBrowserLoading
+                ? 'opacity-60 cursor-not-allowed card-theme border text-muted-theme'
+                : isSetupBrowserRunning
                 ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30'
                 : 'card-theme border text-main-theme hover:opacity-90 shadow-sm'
             }`}
           >
-            <KeyRound className="w-3.5 h-3.5" />
-            <span>{isSetupBrowserRunning ? 'Tutup Browser' : 'Buka Browser Setup'}</span>
+            {isSetupBrowserLoading ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin text-orange-500" />
+            ) : (
+              <KeyRound className="w-3.5 h-3.5" />
+            )}
+            <span>
+              {isSetupBrowserLoading
+                ? 'Membuka Browser...'
+                : isSetupBrowserRunning
+                ? 'Tutup Browser'
+                : 'Buka Browser Setup'}
+            </span>
           </button>
         </div>
       </aside>
@@ -3997,14 +4031,27 @@ export default function Home() {
                               const activeAcc = (config.browserAccounts || []).find(a => a.id === config.activeBrowserAccountId);
                               handleToggleSetupBrowser(activeAcc?.profileFolder);
                             }}
+                            disabled={isSetupBrowserLoading || isBotRunning}
                             className={`px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition shadow-sm ${
-                              isSetupBrowserRunning
+                              isSetupBrowserLoading
+                                ? 'opacity-60 cursor-not-allowed bg-slate-500/10 text-slate-400 border border-slate-500/30'
+                                : isSetupBrowserRunning
                                 ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
                                 : 'bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30'
                             }`}
                           >
-                            <KeyRound className="w-3.5 h-3.5" />
-                            <span>{isSetupBrowserRunning ? 'Tutup Login' : 'Buka Browser Login'}</span>
+                            {isSetupBrowserLoading ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin text-orange-500" />
+                            ) : (
+                              <KeyRound className="w-3.5 h-3.5" />
+                            )}
+                            <span>
+                              {isSetupBrowserLoading
+                                ? 'Membuka...'
+                                : isSetupBrowserRunning
+                                ? 'Tutup Login'
+                                : 'Buka Browser Login'}
+                            </span>
                           </button>
 
                           <button
