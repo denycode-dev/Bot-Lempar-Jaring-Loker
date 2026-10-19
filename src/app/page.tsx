@@ -99,9 +99,7 @@ interface AppConfig {
   indeedNoJobTitleFilter?: boolean;
   debugTest: boolean;
   concurrency: number;
-  useSystemChrome?: boolean;
-  customChromePath?: string;
-  browserEngine?: 'puppeteer' | 'camoufox';
+  browserEngine?: 'camoufox';
   noticePeriod?: string;
   fullName?: string;
   email?: string;
@@ -220,10 +218,8 @@ export default function Home() {
     autoApplyMode: 'auto',
     debugTest: true,
     concurrency: 3,
-    useSystemChrome: true,
-    customChromePath: '',
-    browserEngine: 'puppeteer',
-    noticePeriod: 'Immediately',
+  browserEngine: 'camoufox',
+  noticePeriod: 'Immediately',
     fullName: '',
     email: '',
     gender: 'Laki-laki',
@@ -589,9 +585,8 @@ export default function Home() {
     );
     const step3Complete = hasStorage && hasAi;
 
-    // Step 3 Detailed Engine Progress (4 modules total)
+    // Step 3 Detailed Engine Progress (3 modules total)
     const step3Fields = [
-      { id: 'field-step3-browser', label: 'Pilihan Mesin Browser', isFilled: Boolean(config.useSystemChrome !== undefined) },
       { id: 'field-step3-storage', label: 'Media Penyimpanan Riwayat', isFilled: hasStorage },
       { id: 'field-step3-ai', label: 'Endpoint & Model AI', isFilled: hasAi },
       { id: 'tour-cookie-sync', label: 'Sesi & Akun Job Portal', isFilled: Boolean(config.activeBrowserAccountId || (config.browserAccounts && config.browserAccounts.length > 0)) },
@@ -890,7 +885,7 @@ export default function Home() {
       if (data.success) {
         setIsSetupBrowserRunning(!isSetupBrowserRunning);
         if (action === 'start') {
-          toast.success('Jendela Chrome dibuka. Silakan masuk ke akun Anda lalu tutup browser jika selesai.');
+          toast.success('Jendela browser dibuka. Silakan masuk ke akun Anda lalu tutup browser jika selesai.');
         } else {
           toast.info('Jendela browser setup telah ditutup');
         }
@@ -4327,117 +4322,12 @@ export default function Home() {
                     <div className="border-b border-subtle-theme pb-4">
                       <h2 className="text-base font-semibold text-main-theme">Browser &amp; Spreadsheet</h2>
                       <p className="text-xs text-muted-theme mt-0.5">
-                        Tentukan executable browser Google Chrome serta konfigurasi sinkronisasi Google Sheets.
+                        Konfigurasi media penyimpanan riwayat lamaran dan integrasi model AI.
                       </p>
                     </div>
 
-                    {/* Browser Engine Selection */}
-                    <div id="field-step3-browser" className="space-y-3 transition-all">
-                      <div>
-                        <label className="block text-xs font-semibold text-main-theme">Pilihan Mesin Browser Otomatisasi</label>
-                        <p className="text-[11px] text-muted-theme mt-0.5">
-                          Pilih antara Google Chrome asli yang terpasang di komputer Anda (sangat disarankan untuk lolos Cloudflare &amp; proteksi bot) atau Chromium bawaan Puppeteer.
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                        {/* Option 1: Camoufox Stealth (C++ Anti-Bot) */}
-                        <button
-                          type="button"
-                          onClick={() => setConfig({ ...config, browserEngine: 'camoufox' })}
-                          className={`p-4 rounded-2xl border text-left transition flex items-center justify-between ${
-                            config.browserEngine === 'camoufox'
-                              ? 'bg-purple-500/10 border-purple-500/40 text-purple-700 dark:text-white shadow-sm ring-1 ring-purple-500/30'
-                              : 'card-subtle-theme border-subtle-theme text-muted-theme hover:opacity-90'
-                          }`}
-                        >
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold text-main-theme">🛡️ Camoufox Stealth (Firefox C++)</span>
-                              <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20">
-                                Anti-Bot Level Tinggi
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-muted-theme mt-1 leading-relaxed">
-                              Engine Gecko yang ditambal di level C++ source code. Kebal deteksi CDP leak, Cloudflare Turnstile, dan DataDome pada JobStreet &amp; Indeed.
-                            </div>
-                          </div>
-                          {config.browserEngine === 'camoufox' && <Check className="w-4 h-4 text-purple-500 shrink-0 ml-2" />}
-                        </button>
-
-                        {/* Option 2: Google Chrome System (Default Puppeteer) */}
-                        <button
-                          type="button"
-                          onClick={() => setConfig({ ...config, browserEngine: 'puppeteer', useSystemChrome: true })}
-                          className={`p-4 rounded-2xl border text-left transition flex items-center justify-between ${
-                            config.browserEngine !== 'camoufox' && config.useSystemChrome !== false
-                              ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-700 dark:text-white shadow-sm ring-1 ring-emerald-500/30'
-                              : 'card-subtle-theme border-subtle-theme text-muted-theme hover:opacity-90'
-                          }`}
-                        >
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold text-main-theme">Google Chrome Sistem (Browser Asli)</span>
-                              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                                Standar / Default
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-muted-theme mt-1 leading-relaxed">
-                              Menggunakan instalasi resmi Google Chrome di PC Anda via Puppeteer. Menggunakan data sesi Chrome standar di folder automation-profile.
-                            </div>
-                          </div>
-                          {config.browserEngine !== 'camoufox' && config.useSystemChrome !== false && <Check className="w-4 h-4 text-emerald-500 shrink-0 ml-2" />}
-                        </button>
-
-                        {/* Option 3: Bundled Chromium (Puppeteer Fallback) */}
-                        <button
-                          type="button"
-                          onClick={() => setConfig({ ...config, browserEngine: 'puppeteer', useSystemChrome: false })}
-                          className={`p-4 rounded-2xl border text-left transition flex items-center justify-between ${
-                            config.browserEngine !== 'camoufox' && config.useSystemChrome === false
-                              ? 'bg-amber-500/10 border-amber-500/40 text-amber-700 dark:text-white shadow-sm ring-1 ring-amber-500/30'
-                              : 'card-subtle-theme border-subtle-theme text-muted-theme hover:opacity-90'
-                          }`}
-                        >
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold text-main-theme">Chromium Bawaan (Bundled)</span>
-                              <span className="text-[10px] text-muted-theme bg-slate-500/10 px-1.5 py-0.5 rounded border border-subtle-theme">
-                                Cadangan
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-muted-theme mt-1 leading-relaxed">
-                              Executable browser Chromium yang terunduh otomatis oleh Puppeteer. Praktis tanpa perlu instalasi Chrome di OS.
-                            </div>
-                          </div>
-                          {config.browserEngine !== 'camoufox' && config.useSystemChrome === false && <Check className="w-4 h-4 text-amber-500 shrink-0 ml-2" />}
-                        </button>
-                      </div>
-
-                      {config.browserEngine !== 'camoufox' && config.useSystemChrome !== false && (
-                        <div className="p-3 rounded-xl card-subtle-theme border border-subtle-theme">
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="block text-[11px] font-medium text-main-theme">
-                              Path Khusus Executable Chrome (Opsional)
-                            </label>
-                            <span className="text-[10px] text-muted-theme bg-slate-500/10 px-1.5 py-0.5 rounded border border-subtle-theme">Auto-detect Default</span>
-                          </div>
-                          <input
-                            type="text"
-                            value={config.customChromePath || ''}
-                            onChange={(e) => setConfig({ ...config, customChromePath: e.target.value })}
-                            className="w-full input-theme border rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-orange-500 font-mono transition"
-                            placeholder="C:\Program Files\Google\Chrome\Application\chrome.exe"
-                          />
-                          <p className="text-[10px] text-muted-theme mt-1">
-                            Biarkan kosong jika Chrome terpasang di lokasi standar Windows. Sistem akan otomatis mendeteksi channel &apos;chrome&apos;.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
                     {/* Storage Type Selection */}
-                    <div id="field-step3-storage" className="space-y-3 pt-2 border-t border-subtle-theme transition-all">
+                    <div id="field-step3-storage" className="space-y-3 transition-all">
                       <div>
                         <label className="block text-xs font-semibold text-main-theme">Media Penyimpanan Riwayat Lamaran</label>
                         <p className="text-[11px] text-muted-theme mt-0.5">
@@ -6744,7 +6634,7 @@ export default function Home() {
 
               <p className="text-[11px] text-muted-theme leading-relaxed flex items-start gap-1.5 pt-1">
                 <Info className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" />
-                <span>Setiap profil akun memiliki folder penyimpanan sesi, cookies, dan cache browser Chrome mandiri yang tidak saling menimpa.</span>
+                <span>Setiap profil akun memiliki folder penyimpanan sesi, cookies, dan cache browser mandiri yang tidak saling menimpa.</span>
               </p>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-subtle-theme">

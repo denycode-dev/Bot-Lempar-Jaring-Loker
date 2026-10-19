@@ -44,7 +44,7 @@ export async function captureFormDomSnapshot(pageOrFrame: Page | Frame, containe
 
     interactiveElements.forEach((el, idx) => {
       // Mark element with temporary debug attribute for precision targeting
-      el.setAttribute('data-ai-inspect-id', String(idx));
+      (el as HTMLElement).dataset.aiInspectId = String(idx);
 
       const tagName = el.tagName.toLowerCase();
       const inputType = (el.getAttribute('type') || '').toLowerCase();
@@ -86,7 +86,7 @@ export async function captureFormDomSnapshot(pageOrFrame: Page | Frame, containe
         fieldType = 'select';
       }
 
-      const val = (el as any).value || el.textContent?.trim().slice(0, 50) || '';
+      const val = ('value' in el ? (el as HTMLInputElement).value : '') || el.textContent?.trim().slice(0, 50) || '';
 
       elementMap.push({
         index: idx,
@@ -97,8 +97,9 @@ export async function captureFormDomSnapshot(pageOrFrame: Page | Frame, containe
         selectorHint: `[data-ai-inspect-id="${idx}"]`,
       });
 
+      const optionsAttr = options.length > 0 ? ` options="${options.join('|')}"` : '';
       sanitizedNodes.push(
-        `<item id="${idx}" tag="${tagName}" type="${fieldType}" label="${label}" value="${val.slice(0, 40)}"${options.length > 0 ? ` options="${options.join('|')}"` : ''} />`
+        `<item id="${idx}" tag="${tagName}" type="${fieldType}" label="${label}" value="${val.slice(0, 40)}"${optionsAttr} />`
       );
     });
 
@@ -168,14 +169,57 @@ Tugas Anda:
     });
 
     let cleanJson = rawResponse.replace(/^```(?:json)?\s*/im, '').replace(/```\s*$/im, '').trim();
-    const match = cleanJson.match(/\{[\s\S]*\}/);
-    if (match) cleanJson = match[0];
+    const firstBrace = cleanJson.indexOf('{');
+    const lastBrace = cleanJson.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      cleanJson = cleanJson.slice(firstBrace, lastBrace + 1);
+    }
 
     const result = JSON.parse(cleanJson);
     return result as FormInspectionResult;
-  } catch (error: any) {
-    console.error('[AI Form Inspector Error]', error?.message || error);
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('[AI Form Inspector Error]', errorMsg);
     return null;
+  }
+}
+
+/**
+ * Execute a single AI action on the target element
+ */
+async function executeFieldAction(
+  pageOrFrame: Page | Frame,
+  action: FormInspectionResult['unfilledFields'][number],
+  log: (msg: string) => void
+): Promise<void> {
+  if (!action.targetSelector) return;
+
+  const el = await pageOrFrame.$(action.targetSelector);
+  if (!el) return;
+
+  if (action.suggestedAction === 'fill_text' && action.suggestedValue !== undefined) {
+    log(`   ✍️ AI Mengisi "${action.question}": "${action.suggestedValue}"`);
+    await el.click({ count: 3 });
+    await el.type(action.suggestedValue, { delay: 30 });
+    return;
+  }
+
+  if (action.suggestedAction === 'click_option' || action.suggestedAction === 'click_button') {
+    log(`   🔘 AI Mengklik opsi: "${action.suggestedValue || action.question}"`);
+    await el.click();
+    return;
+  }
+
+  if (action.suggestedAction === 'select_dropdown') {
+    log(`   🔽 AI Memilih dropdown: "${action.suggestedValue || 'Opsi'}"`);
+    await el.click();
+    await new Promise(r => setTimeout(r, 300));
+    await pageOrFrame.evaluate((val: string) => {
+      const options = Array.from(document.querySelectorAll('[role="option"], [class*="option"], [class*="Option"], [class*="DropdownItem"]'));
+      const matched = options.find(o => (o.textContent || '').toLowerCase().includes(val.toLowerCase())) as HTMLElement;
+      if (matched) matched.click();
+      else if (options[0]) (options[0] as HTMLElement).click();
+    }, action.suggestedValue || '');
   }
 }
 
@@ -191,37 +235,16 @@ export async function applyAiFormActions(
 
   log(`🧠 [AI Inspector] Analisis Form: "${plan.formGoal}" (Confidence: ${Math.round(plan.confidence * 100)}%)`);
 
-  for (const action of plan.unfilledFields) {
-    if (!action.targetSelector) continue;
-
+  await plan.unfilledFields.reduce(async (previousPromise, action) => {
+    await previousPromise;
     try {
-      const el = await pageOrFrame.$(action.targetSelector);
-      if (!el) continue;
-
-      if (action.suggestedAction === 'fill_text' && action.suggestedValue !== undefined) {
-        log(`   ✍️ AI Mengisi "${action.question}": "${action.suggestedValue}"`);
-        await el.click({ clickCount: 3 });
-        await el.type(action.suggestedValue, { delay: 30 });
-      } else if (action.suggestedAction === 'click_option' || action.suggestedAction === 'click_button') {
-        log(`   🔘 AI Mengklik opsi: "${action.suggestedValue || action.question}"`);
-        await el.click();
-      } else if (action.suggestedAction === 'select_dropdown') {
-        log(`   🔽 AI Memilih dropdown: "${action.suggestedValue || 'Opsi'}"`);
-        await el.click();
-        await new Promise(r => setTimeout(r, 300));
-        // Coba klik opsi dropdown yang muncul
-        await pageOrFrame.evaluate((val: string) => {
-          const options = Array.from(document.querySelectorAll('[role="option"], [class*="option"], [class*="Option"], [class*="DropdownItem"]'));
-          const matched = options.find(o => (o.textContent || '').toLowerCase().includes(val.toLowerCase())) as HTMLElement;
-          if (matched) matched.click();
-          else if (options[0]) (options[0] as HTMLElement).click();
-        }, action.suggestedValue || '');
-      }
+      await executeFieldAction(pageOrFrame, action, log);
       await new Promise(r => setTimeout(r, 400));
-    } catch (err: any) {
-      log(`   ⚠️ Gagal menerapkan aksi AI pada ${action.targetSelector}: ${err?.message || err}`);
+    } catch (err: unknown) {
+      const errMessage = err instanceof Error ? err.message : String(err);
+      log(`   ⚠️ Gagal menerapkan aksi AI pada ${action.targetSelector}: ${errMessage}`);
     }
-  }
+  }, Promise.resolve());
 
   // Klik Next Button jika AI menemukan tombol lanjut
   if (plan.nextButtonSelector) {
@@ -232,8 +255,9 @@ export async function applyAiFormActions(
         await nextBtn.click();
         return true;
       }
-    } catch (err: any) {
-      log(`   ⚠️ Gagal mengklik tombol next via AI: ${err?.message || err}`);
+    } catch (err: unknown) {
+      const errMessage = err instanceof Error ? err.message : String(err);
+      log(`   ⚠️ Gagal mengklik tombol next via AI: ${errMessage}`);
     }
   }
 

@@ -4,7 +4,7 @@ import { getConfig } from './config';
 
 export interface LaunchBrowserResult {
   browser: any;
-  browserType: 'google-chrome' | 'chromium-bundled' | 'custom-chrome' | 'camoufox-stealth';
+  browserType: 'camoufox-stealth';
 }
 
 import { execSync } from 'child_process';
@@ -18,7 +18,20 @@ export async function launchCamoufoxBrowser(
   onLog?: (msg: string) => void,
   profileFolderOverride?: string
 ): Promise<LaunchBrowserResult> {
-  const { Camoufox } = require('camoufox-js');
+  let Camoufox: any;
+  try {
+    const modName = 'camoufox-js';
+    const camoufoxModule = await (new Function('m', 'return import(m)'))(modName);
+    Camoufox = camoufoxModule.Camoufox || camoufoxModule.default?.Camoufox || camoufoxModule.default;
+  } catch (err: any) {
+    try {
+      const dynamicRequire = typeof module !== 'undefined' && module.require ? module.require.bind(module) : eval('require');
+      const camoufoxPkg = dynamicRequire('camoufox' + '-js');
+      Camoufox = camoufoxPkg.Camoufox || camoufoxPkg.default?.Camoufox || camoufoxPkg.default;
+    } catch {
+      throw new Error(`Camoufox engine gagal dimuat: ${err?.message || err}`);
+    }
+  }
   const config = getConfig();
   const log = onLog || console.log;
 
@@ -38,6 +51,9 @@ export async function launchCamoufoxBrowser(
       fs.mkdirSync(profilePath, { recursive: true });
     } catch {}
   }
+
+  // Bersihkan stale singleton / lock files sebelum meluncurkan Camoufox
+  cleanupStaleProfileLocks(profilePath);
 
   log(`🛡️ Meluncurkan Camoufox Stealth Browser (Firefox C++ Anti-Bot Engine)...`);
 
@@ -85,6 +101,22 @@ export async function launchCamoufoxBrowser(
       page.waitForTimeout = (ms: number) => new Promise(r => setTimeout(r, ms));
     }
 
+    if (!page.setViewport) {
+      page.setViewport = async (vp: { width: number; height: number }) => {
+        if (typeof page.setViewportSize === 'function') {
+          await page.setViewportSize({ width: vp.width, height: vp.height });
+        }
+      };
+    }
+
+    if (!page.evaluateOnNewDocument) {
+      page.evaluateOnNewDocument = async (pageFunction: any, ...args: any[]) => {
+        if (typeof page.addInitScript === 'function') {
+          await page.addInitScript(pageFunction, ...args);
+        }
+      };
+    }
+
     return page;
   }
 
@@ -103,6 +135,20 @@ export async function launchCamoufoxBrowser(
     },
     version: async () => {
       return 'Camoufox-Gecko-Stealth';
+    },
+    on: (event: string, handler: any) => {
+      if (event === 'disconnected') {
+        rawContext.on('close', handler);
+      } else {
+        rawContext.on(event, handler);
+      }
+      return browserWrapper;
+    },
+    isConnected: () => {
+      if (typeof rawContext.isClosed === 'function') {
+        return !rawContext.isClosed();
+      }
+      return true;
     }
   };
 
@@ -114,16 +160,14 @@ export async function launchCamoufoxBrowser(
 }
 
 /**
- * Removes stale Chromium/Chrome singleton lock symlinks and kills any orphan
- * Chrome/Chromium processes that are still holding locks on the userDataDir.
- * This prevents "The browser is already running for ... Use a different userDataDir" errors.
+ * Removes stale lock files and terminates orphan processes that are holding locks on the userDataDir.
  */
 export function cleanupStaleProfileLocks(profilePath: string) {
-  // 1. On Windows, if Chrome crashed or was left orphan, terminate orphan processes holding the folder
+  // 1. On Windows, if Camoufox / Firefox or legacy Chrome crashed or was left orphan, terminate processes holding the folder
   if (process.platform === 'win32') {
     try {
       const safeDir = profilePath.replace(/'/g, "''");
-      const psScript = `Get-CimInstance Win32_Process -Filter "Name = 'chrome.exe' or Name = 'chromium.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*${safeDir}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
+      const psScript = `Get-CimInstance Win32_Process -Filter "Name = 'camoufox.exe' or Name = 'firefox.exe' or Name = 'chrome.exe' or Name = 'chromium.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*${safeDir}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
       const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
       execSync(`powershell -NoProfile -NonInteractive -EncodedCommand ${encoded}`, { stdio: 'ignore', timeout: 3000 });
     } catch {
@@ -155,148 +199,15 @@ export function cleanupStaleProfileLocks(profilePath: string) {
 }
 
 /**
- * Launches Puppeteer browser with priority given to official Google Chrome (System Chrome)
- * and automatically falls back to bundled Chromium if Google Chrome fails or is unavailable.
- * Supports multi-account profiles (resolves profile folder from active browser account).
+ * Standard launcher that launches Camoufox Stealth Browser as the mandatory engine.
+ * Retains function signature for full backwards compatibility across the application.
  */
 export async function launchBrowserWithFallback(
   mode: 'headless' | 'headful' = 'headless',
   onLog?: (msg: string) => void,
   profileFolderOverride?: string
 ): Promise<LaunchBrowserResult> {
-  const puppeteer = require('puppeteer-extra');
-  const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-  try {
-    puppeteer.use(StealthPlugin());
-  } catch (e) {}
-
-  const config = getConfig();
-
-  // If user selected Camoufox Stealth Engine, launch Camoufox directly
-  if (config.browserEngine === 'camoufox') {
-    try {
-      return await launchCamoufoxBrowser(mode, onLog, profileFolderOverride);
-    } catch (camoufoxErr: any) {
-      const log = onLog || console.log;
-      log(`⚠️ Gagal membuka Camoufox Stealth: ${camoufoxErr.message || camoufoxErr}`);
-      log(`🔄 Beralih ke Google Chrome / Puppeteer fallback...`);
-    }
-  }
-
-  // Resolve profile folder from override, active browser account, or default
-  let folderName = profileFolderOverride;
-  if (!folderName) {
-    const activeAccount = config.browserAccounts?.find(a => a.id === config.activeBrowserAccountId);
-    folderName = activeAccount?.profileFolder || 'automation-profile';
-  }
-
-  const profilePath = path.isAbsolute(folderName) ? folderName : path.join(/*turbopackIgnore: true*/ process.cwd(), folderName);
-  const isHeadless = mode !== 'headful';
-
-  // Ensure directory exists
-  if (!fs.existsSync(/*turbopackIgnore: true*/ profilePath)) {
-    try {
-      fs.mkdirSync(profilePath, { recursive: true });
-    } catch {}
-  }
-
-  // Bersihkan stale singleton lock sebelum meluncurkan browser
-  cleanupStaleProfileLocks(profilePath);
-
-  const baseArgs = [
-    '--no-default-browser-check',
-    '--no-first-run',
-    '--disable-infobars',
-    '--disable-blink-features=AutomationControlled',
-  ];
-
-  if (!isHeadless) {
-    // Headful mode flags to ensure a visible, focused window on the primary screen
-    baseArgs.push(
-      '--new-window',
-      '--start-maximized',
-      '--window-position=50,50',
-      '--window-size=1280,900'
-    );
-  } else {
-    baseArgs.push('--window-size=1280,800');
-  }
-
-  // Sandbox flags khusus Linux jika dijalankan di container/server Linux
-  if (process.platform === 'linux') {
-    baseArgs.push('--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage');
-  }
-
-  const baseOptions: any = {
-    headless: isHeadless,
-    userDataDir: profilePath,
-    ignoreDefaultArgs: ['--enable-automation'],
-    args: baseArgs,
-    defaultViewport: isHeadless ? { width: 1280, height: 800 } : null
-  };
-
-  const log = onLog || console.log;
-
-  // ----------------------------------------------------
-  // ATTEMPT 1: Official Google Chrome (System Chrome)
-  // ----------------------------------------------------
-  if (config.useSystemChrome !== false) {
-    const customPath = config.customChromePath ? config.customChromePath.trim() : '';
-    const isCustomPath = customPath.length > 0;
-    const chromeOptions = {
-      ...baseOptions,
-      ...(isCustomPath ? { executablePath: customPath } : { channel: 'chrome' })
-    };
-
-    const targetLabel = isCustomPath
-      ? `Google Chrome (${customPath})`
-      : 'Google Chrome Resmi (System Chrome)';
-
-    try {
-      log(`🌐 Mencoba meluncurkan ${targetLabel}...`);
-      cleanupStaleProfileLocks(profilePath);
-      const browser = await puppeteer.launch(chromeOptions);
-      const version = await browser.version().catch(() => 'Unknown');
-      log(`✅ Berhasil membuka ${targetLabel} [${version}]`);
-
-      // Ensure window is brought to the front on Windows in headful mode
-      if (!isHeadless && process.platform === 'win32') {
-        try {
-          const { exec } = require('child_process');
-          const ps = `(New-Object -ComObject WScript.Shell).AppActivate('Chrome')`;
-          const encoded = Buffer.from(ps, 'utf16le').toString('base64');
-          exec(`powershell -NoProfile -NonInteractive -EncodedCommand ${encoded}`, () => {});
-        } catch {}
-      }
-
-      return {
-        browser,
-        browserType: isCustomPath ? 'custom-chrome' : 'google-chrome'
-      };
-    } catch (chromeError: any) {
-      log(`⚠️ Gagal membuka ${targetLabel}: ${chromeError.message || chromeError}`);
-      log(`🔄 Beralih (fallback) menggunakan Chromium bawaan Puppeteer...`);
-      cleanupStaleProfileLocks(profilePath);
-    }
-  }
-
-  // ----------------------------------------------------
-  // ATTEMPT 2: Fallback to Bundled Chromium
-  // ----------------------------------------------------
-  try {
-    log(`🌐 Meluncurkan Chromium Bawaan (Bundled Chromium)...`);
-    cleanupStaleProfileLocks(profilePath);
-    const browser = await puppeteer.launch(baseOptions);
-    const version = await browser.version().catch(() => 'Unknown');
-    log(`✅ Berhasil membuka Chromium Bawaan [${version}]`);
-    return {
-      browser,
-      browserType: 'chromium-bundled'
-    };
-  } catch (bundledError: any) {
-    log(`🚨 Gagal meluncurkan browser: ${bundledError.message || bundledError}`);
-    throw new Error(`Tidak dapat meluncurkan browser: ${bundledError.message || bundledError}`);
-  }
+  return await launchCamoufoxBrowser(mode, onLog, profileFolderOverride);
 }
 
 export interface StuckResolutionResult {

@@ -31,10 +31,11 @@ export async function extractTextFromFile(filePath: string): Promise<string> {
   const ext = path.extname(filePath).toLowerCase();
 
   if (ext === '.pdf') {
-    const pdfParse = require('pdf-parse-fork');
+    const { extractText, getDocumentProxy } = await import('unpdf');
     const dataBuffer = fs.readFileSync(filePath);
-    const data = await pdfParse(dataBuffer);
-    return data.text || '';
+    const pdf = await getDocumentProxy(new Uint8Array(dataBuffer));
+    const { text } = await extractText(pdf, { mergePages: true });
+    return text || '';
   } else if (ext === '.docx' || ext === '.doc') {
     const mammoth = require('mammoth');
     const result = await mammoth.extractRawText({ path: filePath });

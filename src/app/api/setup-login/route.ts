@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Launch Google Chrome (with automatic Chromium fallback) in headful mode
+    // Launch Camoufox Stealth Browser in headful mode
     try {
       const { browser, browserType } = await launchBrowserWithFallback(
         'headful', 
@@ -61,13 +61,13 @@ export async function POST(request: Request) {
       await applyStealthToPage(page4);
       page4.goto('https://id.indeed.com', { waitUntil: 'domcontentloaded' }).catch(() => {});
 
-      // Bring tab 1 to front to ensure Chrome window focuses on the user's screen
+      // Bring tab 1 to front to ensure browser window focuses on the user's screen
       await page1.bringToFront().catch(() => {});
 
       if (process.platform === 'win32') {
         try {
           const { exec } = require('child_process');
-          const ps = `(New-Object -ComObject WScript.Shell).AppActivate('Google Chrome')`;
+          const ps = `(New-Object -ComObject WScript.Shell).AppActivate('Camoufox'); (New-Object -ComObject WScript.Shell).AppActivate('Firefox')`;
           const encoded = Buffer.from(ps, 'utf16le').toString('base64');
           exec(`powershell -NoProfile -NonInteractive -EncodedCommand ${encoded}`, () => {});
         } catch {}

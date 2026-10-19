@@ -39,9 +39,7 @@ export interface AppConfig {
   indeedNoJobTitleFilter?: boolean;
   debugTest: boolean;
   concurrency: number;
-  useSystemChrome?: boolean;
-  customChromePath?: string;
-  browserEngine?: 'puppeteer' | 'camoufox';
+  browserEngine?: 'camoufox';
   noticePeriod: string;
   // Candidate Profile Fields
   fullName: string;
@@ -124,9 +122,7 @@ const DEFAULT_CONFIG: AppConfig = {
   indeedNoJobTitleFilter: false,
   debugTest: true,
   concurrency: 3,
-  useSystemChrome: true,
-  customChromePath: '',
-  browserEngine: 'puppeteer',
+  browserEngine: 'camoufox',
   enableCoverLetterGen: true,
   enableJobMatchFilter: false,
   minMatchScore: 60,
@@ -201,7 +197,11 @@ export function getConfig(): AppConfig {
   try {
     if (fs.existsSync(CONFIG_PATH)) {
       const data = fs.readFileSync(CONFIG_PATH, 'utf8');
-      return { ...DEFAULT_CONFIG, ...JSON.parse(data) };
+      const parsed = JSON.parse(data);
+      delete parsed.useSystemChrome;
+      delete parsed.customChromePath;
+      parsed.browserEngine = 'camoufox';
+      return { ...DEFAULT_CONFIG, ...parsed };
     }
   } catch (error) {
     console.error('Error reading config:', error);
@@ -213,6 +213,9 @@ export function saveConfig(config: Partial<AppConfig>): AppConfig {
   try {
     const current = getConfig();
     const updated = { ...current, ...config };
+    delete (updated as any).useSystemChrome;
+    delete (updated as any).customChromePath;
+    updated.browserEngine = 'camoufox';
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(updated, null, 2), 'utf8');
     return updated;
   } catch (error) {
