@@ -2,7 +2,6 @@ import { isJobAlreadyApplied, addAppliedJob } from '../storage';
 import { appendQuestionToCsv } from '../csvHelper';
 import { answerQuestion } from '../questionAnswer';
 import { evaluateJobMatch } from '../jobMatcher';
-import { generateDynamicCoverLetter } from '../coverLetterGenerator';
 import { parseCookiesInput, injectCookiesIntoPage } from '../cookieHelper';
 import { buildJobstreetSearchUrl } from '../searchQueryBuilder';
 

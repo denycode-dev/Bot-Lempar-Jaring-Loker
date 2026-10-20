@@ -24,6 +24,7 @@ import {
   BookOpen,
   Minimize2,
   Maximize2,
+  Settings2,
 } from 'lucide-react';
 
 export interface TourStep {
@@ -31,8 +32,8 @@ export interface TourStep {
   title: string;
   content: string;
   icon: React.ComponentType<{ className?: string }>;
-  tab?: 'wizard' | 'logs' | 'questions' | 'history' | 'jobs' | 'talent';
-  wizardStep?: 1 | 2 | 3;
+  tab?: 'wizard' | 'logs' | 'questions' | 'history' | 'jobs' | 'talent' | 'settings';
+  wizardStep?: 1 | 2;
   preferredPlacement?: 'bottom' | 'top' | 'center';
 }
 
@@ -101,13 +102,12 @@ const FULL_SYSTEM_STEPS: TourStep[] = [
     preferredPlacement: 'top',
   },
   {
-    targetId: 'tour-engine-setup',
-    title: '6. Mesin Browser, AI Gateway & SQLite',
-    content: 'Pilih Chrome asli PC, hubungkan API key Google Gemini / 9Router / OpenAI Compatible, dan atur jumlah tab worker konkuren (1-8 tab).',
-    icon: Database,
-    tab: 'wizard',
-    wizardStep: 3,
-    preferredPlacement: 'top',
+    targetId: 'settings-ai-section',
+    title: '6. Pengaturan AI (OpenAI API) & Integrasi',
+    content: 'Halaman terpusat untuk konfigurasi model AI (standar OpenAI API, 9Router, DeepSeek, Groq), media penyimpanan riwayat SQLite / Google Sheets, dan otomasi browser.',
+    icon: Settings2,
+    tab: 'settings',
+    preferredPlacement: 'bottom',
   },
   {
     targetId: 'tour-batch-questions',
@@ -178,14 +178,37 @@ export const TOUR_MODULES: TourModule[] = [
     ],
   },
   {
-    id: 'engine',
-    title: 'Modul 3: AI Gateway & Engine Browser',
-    description: 'Konfigurasi provider AI (Gemini / 9Router / OpenAI), jumlah worker tab, dan database SQLite lokal.',
-    badge: 'Langkah 3',
-    icon: Database,
+    id: 'settings',
+    title: 'Modul 3: Pengaturan AI, Storage & Browser',
+    description: 'Konfigurasi provider AI (OpenAI API, 9Router, DeepSeek, Groq), penyimpanan SQLite / Sheets, dan mesin browser.',
+    badge: 'Menu Pengaturan',
+    icon: Settings2,
     color: 'from-purple-500/20 to-indigo-500/10 border-purple-500/30 text-purple-500',
     steps: [
-      FULL_SYSTEM_STEPS[6], // tour-engine-setup
+      {
+        targetId: 'settings-ai-section',
+        title: 'Pengaturan AI (OpenAI API Standard)',
+        content: 'Pilih provider AI resmi atau gateway (OpenAI Official, 9Router, Groq, DeepSeek, Gemini). Lengkap dengan uji koneksi langsung dan failover endpoint cadangan.',
+        icon: Bot,
+        tab: 'settings',
+        preferredPlacement: 'bottom',
+      },
+      {
+        targetId: 'settings-storage-section',
+        title: 'Media Penyimpanan Riwayat Lamaran',
+        content: 'Pilih Database SQLite lokal (default kilat 0.1ms tanpa batasan kuota), Local JSON, atau sinkronisasi cloud real-time ke Google Sheets API.',
+        icon: Database,
+        tab: 'settings',
+        preferredPlacement: 'bottom',
+      },
+      {
+        targetId: 'settings-browser-section',
+        title: 'Pengaturan Browser & Otomatisasi',
+        content: 'Atur simulasi human stealth (kecepatan ketik alami & gerak mouse acak), mode uji coba debug dry-run, dan jumlah worker tab konkuren.',
+        icon: Sliders,
+        tab: 'settings',
+        preferredPlacement: 'top',
+      },
     ],
   },
   {

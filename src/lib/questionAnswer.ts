@@ -21,7 +21,6 @@
 import { parse } from "csv-parse/sync";
 import fs, { readFileSync, writeFileSync } from "fs";
 import path from "path";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getConfig } from "./config";
 
 // ---------------------------------------------------------------------------
@@ -761,8 +760,6 @@ function tryRegexAnswer(
 // 5. LLM fallback for anything regex couldn't classify
 // ---------------------------------------------------------------------------
 
-const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-
 async function askLLM(
   question: string,
   options: string[],
@@ -787,12 +784,12 @@ Question: "${question}"
 Reply with a concise, highly professional, direct answer (1-2 sentences maximum, or just the number/fact if it's a simple factual question). Reply in the same language as the question (Indonesian or English).`;
 
     try {
-      if (process.env.GEMINI_API_KEY) {
-        const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const result = await model.generateContent(prompt);
-        const text = (result.response.text() || "").trim();
-        if (text) return [text];
-      }
+      const { askUniversalAi } = require('./aiGateway');
+      const text = await askUniversalAi({
+        userPrompt: prompt,
+        temperature: 0.1,
+      });
+      if (text?.trim()) return [text.trim()];
     } catch {}
 
     // Smart context-aware fallback based on question intent

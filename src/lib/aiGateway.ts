@@ -1,5 +1,5 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getConfig, AiEndpointConfig } from './config';
+import { executeOpenAiCompletion, GEMINI_OPENAI_BASE_URL } from './ai/openAiClient';
 
 export interface AiCompletionOptions {
   systemPrompt?: string;
@@ -9,73 +9,16 @@ export interface AiCompletionOptions {
 }
 
 /**
- * Universal AI Completion Function with Multi-Provider Chaining & Automatic Fallback:
+ * Universal AI Completion Function with Multi-Provider Chaining & Automatic Fallback
+ * Powered by the official OpenAI SDK supporting OpenAI-compatible APIs & Gemini:
  * 1. Checks active endpoint from `aiEndpoints` list
  * 2. Tries remaining configured endpoints in sequence
- * 3. Falls back to .env GEMINI_API_KEY
+ * 3. Falls back to legacy config fields
+ * 4. Falls back to .env GEMINI_API_KEY
  */
 export async function askUniversalAi(options: AiCompletionOptions): Promise<string> {
   const config = getConfig();
   const errors: string[] = [];
-
-  // Helper: Call Google Gemini API
-  const tryGemini = async (apiKey: string, modelName = 'gemini-2.5-flash'): Promise<string> => {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: modelName || 'gemini-2.5-flash',
-      generationConfig: {
-        temperature: options.temperature ?? 0.2,
-        responseMimeType: options.jsonMode ? 'application/json' : undefined,
-      },
-    });
-
-    const fullPrompt = options.systemPrompt
-      ? `${options.systemPrompt}\n\n${options.userPrompt}`
-      : options.userPrompt;
-
-    const result = await model.generateContent(fullPrompt);
-    return (result.response.text() || '').trim();
-  };
-
-  // Helper: Call OpenAI-compatible endpoint (9Router, OpenRouter, Custom host, Ollama, vLLM)
-  const tryOpenAiCompatible = async (baseUrl: string, apiKey: string, modelName: string): Promise<string> => {
-    const cleanUrl = baseUrl.replace(/\/+$/, '');
-    const endpoint = cleanUrl.endsWith('/chat/completions') ? cleanUrl : `${cleanUrl}/chat/completions`;
-
-    const messages = [];
-    if (options.systemPrompt) {
-      messages.push({ role: 'system', content: options.systemPrompt });
-    }
-    messages.push({ role: 'user', content: options.userPrompt });
-
-    const payload: any = {
-      model: modelName || 'google/gemini-2.5-flash',
-      messages,
-      temperature: options.temperature ?? 0.2,
-    };
-
-    if (options.jsonMode) {
-      payload.response_format = { type: 'json_object' };
-    }
-
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(20000), // 20s timeout
-    });
-
-    if (!res.ok) {
-      const errBody = await res.text();
-      throw new Error(`HTTP ${res.status}: ${errBody.slice(0, 200)}`);
-    }
-
-    const data = await res.json();
-    return (data.choices?.[0]?.message?.content || '').trim();
-  };
 
   // Build execution queue from aiEndpoints list
   const endpoints: AiEndpointConfig[] = Array.isArray(config.aiEndpoints) && config.aiEndpoints.length > 0
@@ -113,11 +56,22 @@ export async function askUniversalAi(options: AiCompletionOptions): Promise<stri
     if (!ep.apiKey?.trim()) continue;
 
     try {
-      if (ep.type === 'gemini') {
-        return await tryGemini(ep.apiKey.trim(), ep.model);
-      } else {
-        return await tryOpenAiCompatible(ep.baseUrl || 'https://api.9router.com/v1', ep.apiKey.trim(), ep.model);
-      }
+      const isGemini = ep.type === 'gemini';
+      const baseUrl = isGemini
+        ? (ep.baseUrl || GEMINI_OPENAI_BASE_URL)
+        : (ep.baseUrl || 'https://api.9router.com/v1');
+      const model = ep.model || (isGemini ? 'gemini-2.5-flash' : 'google/gemini-2.5-flash');
+
+      return await executeOpenAiCompletion({
+        apiKey: ep.apiKey.trim(),
+        baseUrl,
+        model,
+        systemPrompt: options.systemPrompt,
+        userPrompt: options.userPrompt,
+        temperature: options.temperature,
+        jsonMode: options.jsonMode,
+        timeoutMs: 25000,
+      });
     } catch (err: any) {
       const msg = `Provider [${ep.name} (${ep.model})]: ${err?.message || err}`;
       console.warn(`AI Gateway failover -> ${msg}`);
@@ -128,7 +82,16 @@ export async function askUniversalAi(options: AiCompletionOptions): Promise<stri
   // Fallback to legacy fields if not covered
   if (config.geminiApiKey?.trim()) {
     try {
-      return await tryGemini(config.geminiApiKey.trim());
+      return await executeOpenAiCompletion({
+        apiKey: config.geminiApiKey.trim(),
+        baseUrl: GEMINI_OPENAI_BASE_URL,
+        model: 'gemini-2.5-flash',
+        systemPrompt: options.systemPrompt,
+        userPrompt: options.userPrompt,
+        temperature: options.temperature,
+        jsonMode: options.jsonMode,
+        timeoutMs: 25000,
+      });
     } catch (e: any) {
       errors.push(`Legacy Gemini Config: ${e?.message || e}`);
     }
@@ -136,7 +99,16 @@ export async function askUniversalAi(options: AiCompletionOptions): Promise<stri
 
   if (config.customAiApiKey?.trim() && config.customAiBaseUrl?.trim()) {
     try {
-      return await tryOpenAiCompatible(config.customAiBaseUrl, config.customAiApiKey, config.customAiModel || 'google/gemini-2.5-flash');
+      return await executeOpenAiCompletion({
+        apiKey: config.customAiApiKey.trim(),
+        baseUrl: config.customAiBaseUrl,
+        model: config.customAiModel || 'google/gemini-2.5-flash',
+        systemPrompt: options.systemPrompt,
+        userPrompt: options.userPrompt,
+        temperature: options.temperature,
+        jsonMode: options.jsonMode,
+        timeoutMs: 25000,
+      });
     } catch (e: any) {
       errors.push(`Legacy Custom AI: ${e?.message || e}`);
     }
@@ -146,7 +118,16 @@ export async function askUniversalAi(options: AiCompletionOptions): Promise<stri
   const envKey = process.env.GEMINI_API_KEY?.trim();
   if (envKey && envKey !== 'your_gemini_api_key_here') {
     try {
-      return await tryGemini(envKey);
+      return await executeOpenAiCompletion({
+        apiKey: envKey,
+        baseUrl: GEMINI_OPENAI_BASE_URL,
+        model: 'gemini-2.5-flash',
+        systemPrompt: options.systemPrompt,
+        userPrompt: options.userPrompt,
+        temperature: options.temperature,
+        jsonMode: options.jsonMode,
+        timeoutMs: 25000,
+      });
     } catch (e: any) {
       errors.push(`Gemini .env: ${e?.message || e}`);
     }
@@ -156,41 +137,34 @@ export async function askUniversalAi(options: AiCompletionOptions): Promise<stri
 }
 
 /**
- * Test a specific endpoint or active endpoint
+ * Test a specific endpoint or active endpoint using the unified OpenAI client
  */
 export async function testAiConnection(specificEndpoint?: Partial<AiEndpointConfig>): Promise<{ success: boolean; message: string; reply?: string }> {
   try {
     if (specificEndpoint && specificEndpoint.apiKey) {
-      if (specificEndpoint.type === 'gemini') {
-        const genAI = new GoogleGenerativeAI(specificEndpoint.apiKey.trim());
-        const model = genAI.getGenerativeModel({ model: specificEndpoint.model || 'gemini-2.5-flash' });
-        const res = await model.generateContent('Katakan "Koneksi Gemini Sukses!" dalam 1 kalimat pendek.');
-        return { success: true, message: 'Koneksi Gemini Sukses!', reply: (res.response.text() || '').trim() };
-      } else {
-        const cleanUrl = (specificEndpoint.baseUrl || 'https://api.9router.com/v1').replace(/\/+$/, '');
-        const endpoint = cleanUrl.endsWith('/chat/completions') ? cleanUrl : `${cleanUrl}/chat/completions`;
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${specificEndpoint.apiKey.trim()}`,
-          },
-          body: JSON.stringify({
-            model: specificEndpoint.model || 'google/gemini-2.5-flash',
-            messages: [{ role: 'user', content: 'Katakan "Koneksi Router Sukses!" dalam 1 kalimat pendek.' }],
-            temperature: 0.1,
-          }),
-          signal: AbortSignal.timeout(30000),
-        });
+      const isGemini = specificEndpoint.type === 'gemini';
+      const baseUrl = isGemini
+        ? (specificEndpoint.baseUrl || GEMINI_OPENAI_BASE_URL)
+        : (specificEndpoint.baseUrl || 'https://api.9router.com/v1');
+      const model = specificEndpoint.model || (isGemini ? 'gemini-2.5-flash' : 'google/gemini-2.5-flash');
+      const testPrompt = isGemini
+        ? 'Katakan "Koneksi Gemini Sukses!" dalam 1 kalimat pendek.'
+        : 'Katakan "Koneksi Router Sukses!" dalam 1 kalimat pendek.';
 
-        if (!res.ok) {
-          const errBody = await res.text();
-          throw new Error(`HTTP ${res.status}: ${errBody.slice(0, 180)}`);
-        }
-        const data = await res.json();
-        const reply = (data.choices?.[0]?.message?.content || '').trim();
-        return { success: true, message: 'Koneksi Router Sukses!', reply };
-      }
+      const reply = await executeOpenAiCompletion({
+        apiKey: specificEndpoint.apiKey.trim(),
+        baseUrl,
+        model,
+        userPrompt: testPrompt,
+        temperature: 0.1,
+        timeoutMs: 30000,
+      });
+
+      return {
+        success: true,
+        message: isGemini ? 'Koneksi Gemini Sukses!' : 'Koneksi Router Sukses!',
+        reply,
+      };
     }
 
     const reply = await askUniversalAi({

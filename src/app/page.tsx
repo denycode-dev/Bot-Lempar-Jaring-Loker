@@ -36,6 +36,7 @@ import {
   ShieldAlert,
   FolderOpen,
   Eye,
+  EyeOff,
   AlertCircle,
   Bookmark,
   BookmarkCheck,
@@ -55,6 +56,7 @@ import {
   Copy,
   Target,
   Menu,
+  Save,
 } from 'lucide-react';
 import { OnboardingTour } from '@/components/OnboardingTour';
 import BatchQuestionModal from '@/components/BatchQuestionModal';
@@ -190,8 +192,8 @@ interface ConfigPreset {
 const DRAFT_KEY = 'cv-blaster-draft';
 const PRESETS_KEY = 'cv-blaster-presets';
 
-type NavTab = 'wizard' | 'questions' | 'logs' | 'history' | 'jobs' | 'talent';
-type WizardStep = 1 | 2 | 3;
+type NavTab = 'wizard' | 'questions' | 'logs' | 'history' | 'jobs' | 'talent' | 'settings';
+type WizardStep = 1 | 2;
 
 export default function Home() {
   const [config, setConfig] = useState<AppConfig>({
@@ -241,30 +243,21 @@ export default function Home() {
     cvFilePath: '',
     cvExtractedText: '',
     cvAnalyzedAt: '',
-    aiProvider: 'gemini',
+    aiProvider: 'custom_router',
     geminiApiKey: '',
     customAiBaseUrl: 'https://api.9router.com/v1',
     customAiApiKey: '',
     customAiModel: 'google/gemini-2.5-flash',
-    activeAiEndpointId: 'ep-gemini',
+    activeAiEndpointId: 'ep-primary',
     aiEndpoints: [
       {
-        id: 'ep-gemini',
-        name: 'Google Gemini (Official)',
-        type: 'gemini',
-        baseUrl: '',
-        apiKey: '',
-        model: 'gemini-2.5-flash',
-        isActive: true,
-      },
-      {
-        id: 'ep-9router',
-        name: '9Router AI Gateway',
+        id: 'ep-primary',
+        name: '9Router (OpenAI-Compatible)',
         type: 'openai_compatible',
         baseUrl: 'https://api.9router.com/v1',
         apiKey: '',
         model: 'google/gemini-2.5-flash',
-        isActive: false,
+        isActive: true,
       },
     ],
     activeBrowserAccountId: 'account-1',
@@ -586,11 +579,11 @@ export default function Home() {
     );
     const step3Complete = hasStorage && hasAi;
 
-    // Step 3 Detailed Engine Progress (3 modules total)
+    // Pengaturan Sistem Progress (AI, Storage & Browser)
     const step3Fields = [
-      { id: 'field-step3-storage', label: 'Media Penyimpanan Riwayat', isFilled: hasStorage },
-      { id: 'field-step3-ai', label: 'Endpoint & Model AI', isFilled: hasAi },
-      { id: 'tour-cookie-sync', label: 'Sesi & Akun Job Portal', isFilled: Boolean(config.activeBrowserAccountId || (config.browserAccounts && config.browserAccounts.length > 0)) },
+      { id: 'settings-ai-section', label: 'Endpoint & Model AI', isFilled: hasAi },
+      { id: 'settings-storage-section', label: 'Media Penyimpanan Riwayat', isFilled: hasStorage },
+      { id: 'settings-browser-section', label: 'Preferensi Browser & Otomasi', isFilled: Boolean(config.concurrency !== undefined) },
     ];
     const step3Filled = step3Fields.filter(f => f.isFilled).length;
     const step3Total = step3Fields.length;
@@ -631,7 +624,12 @@ export default function Home() {
 
   // Lompat dan highlight border otomatis ke input yang belum terisi pada langkah tertentu
   const handleJumpToUnfilledField = useCallback((stepNum: 1 | 2 | 3) => {
-    setWizardStep(stepNum);
+    if (stepNum === 3) {
+      setActiveTab('settings');
+    } else {
+      setActiveTab('wizard');
+      setWizardStep(stepNum);
+    }
 
     const fields = stepNum === 1
       ? readinessMetrics.step1Fields
@@ -840,7 +838,7 @@ export default function Home() {
           JSON.parse(config.googleCredentialsJson);
         } catch {
           toast.error('Format Tidak Valid: Google Credentials JSON harus berupa JSON valid!');
-          setWizardStep(3);
+          setActiveTab('settings');
           return false;
         }
       }
@@ -1498,6 +1496,8 @@ export default function Home() {
   };
 
   const [isTestingAi, setIsTestingAi] = useState(false);
+  const [testingEndpointId, setTestingEndpointId] = useState<string | null>(null);
+  const [visibleKeyIds, setVisibleKeyIds] = useState<Record<string, boolean>>({});
 
 
   const handleTestAi = async () => {
@@ -1820,6 +1820,18 @@ export default function Home() {
                     </span>
                   )}
                 </button>
+
+                {/* Pengaturan Sistem */}
+                <button
+                  onClick={() => { setActiveTab('settings'); setIsMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                    activeTab === 'settings' ? 'sidebar-nav-active' : 'sidebar-nav-idle'
+                  }`}
+                >
+                  <Settings2 className="w-4 h-4 text-orange-500" />
+                  <span>Pengaturan</span>
+                  {activeTab === 'settings' && <ChevronRight className="w-3.5 h-3.5 ml-auto text-orange-500" />}
+                </button>
               </nav>
             </div>
 
@@ -2014,6 +2026,20 @@ export default function Home() {
                 </span>
               )}
             </button>
+
+            {/* Pengaturan Sistem */}
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                activeTab === 'settings'
+                  ? 'sidebar-nav-active'
+                  : 'sidebar-nav-idle'
+              }`}
+            >
+              <Settings2 className="w-4 h-4 text-orange-500" />
+              <span>Pengaturan</span>
+              {activeTab === 'settings' && <ChevronRight className="w-3.5 h-3.5 ml-auto text-orange-500" />}
+            </button>
           </nav>
         </div>
 
@@ -2102,6 +2128,7 @@ export default function Home() {
               {activeTab === 'history' && 'Rekap Loker yang Sudah Dilamar'}
               {activeTab === 'jobs' && 'Daftar Loker Terjaring'}
               {activeTab === 'talent' && 'Talent Scout & Sourcing Engine (Outsourcing & HRIS)'}
+              {activeTab === 'settings' && 'Pengaturan Sistem & Integrasi'}
             </span>
           </div>
 
@@ -2632,12 +2659,9 @@ export default function Home() {
 
                 <button
                   type="button"
-                  onClick={() => setWizardStep(3)}
-                  className={`p-3.5 sm:p-4 rounded-2xl border text-left transition-all flex flex-col justify-between gap-3 ${
-                    wizardStep === 3
-                      ? 'card-subtle-theme border-orange-500 shadow-sm ring-1 ring-orange-500/20'
-                      : 'card-theme hover:opacity-90'
-                  }`}
+                  onClick={() => setActiveTab('settings')}
+                  className="p-3.5 sm:p-4 rounded-2xl border text-left transition-all flex flex-col justify-between gap-3 card-theme hover:opacity-90 hover:border-orange-500/50"
+                  title="Klik untuk membuka Pengaturan Sistem (AI, Browser & Storage)"
                 >
                   <div className="flex items-center justify-between w-full gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -2648,11 +2672,14 @@ export default function Home() {
                             : 'bg-slate-200 dark:bg-[#282E37] text-slate-700 dark:text-slate-300'
                         }`}
                       >
-                        {readinessMetrics.step3Complete ? <Check className="w-3.5 h-3.5" /> : '3'}
+                        {readinessMetrics.step3Complete ? <Check className="w-3.5 h-3.5" /> : <Settings2 className="w-3.5 h-3.5 text-orange-500" />}
                       </div>
                       <div className="min-w-0">
-                        <div className="text-xs font-semibold text-main-theme truncate">Langkah 3</div>
-                        <div className="text-[11px] text-muted-theme truncate">Browser, AI &amp; Storage</div>
+                        <div className="text-xs font-semibold text-main-theme truncate flex items-center gap-1.5">
+                          <span>Pengaturan Sistem</span>
+                          <ExternalLink className="w-3 h-3 text-muted-theme" />
+                        </div>
+                        <div className="text-[11px] text-muted-theme truncate">AI &amp; Spreadsheet</div>
                       </div>
                     </div>
                     <span
@@ -2660,15 +2687,15 @@ export default function Home() {
                       tabIndex={0}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleJumpToUnfilledField(3);
+                        setActiveTab('settings');
                       }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.stopPropagation();
-                          handleJumpToUnfilledField(3);
+                          setActiveTab('settings');
                         }
                       }}
-                      title="Klik untuk loncat dan tandai input yang belum terisi di Langkah 3"
+                      title="Klik untuk loncat ke Pengaturan Sistem"
                       className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border shrink-0 font-mono flex items-center gap-1.5 cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-xs ${
                         readinessMetrics.step3Percent === 100
                           ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700/60 hover:border-emerald-400'
@@ -2678,7 +2705,7 @@ export default function Home() {
                       }`}
                     >
                       <span>{readinessMetrics.step3Filled}/{readinessMetrics.step3Total} ({readinessMetrics.step3Percent}%)</span>
-                      <Target className="w-3 h-3 opacity-70 hover:opacity-100" />
+                      <Settings2 className="w-3 h-3 opacity-70 hover:opacity-100" />
                     </span>
                   </div>
 
@@ -4363,517 +4390,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* STEP 3: ENVIRONMENT & GOOGLE SHEETS */}
-                {wizardStep === 3 && (
-                  <div id="tour-engine-setup" className="space-y-6">
-                    <div className="border-b border-subtle-theme pb-4">
-                      <h2 className="text-base font-semibold text-main-theme">Browser &amp; Spreadsheet</h2>
-                      <p className="text-xs text-muted-theme mt-0.5">
-                        Konfigurasi media penyimpanan riwayat lamaran dan integrasi model AI.
-                      </p>
-                    </div>
-
-                    {/* Storage Type Selection */}
-                    <div id="field-step3-storage" className="space-y-3 transition-all">
-                      <div>
-                        <label className="block text-xs font-semibold text-main-theme">Media Penyimpanan Riwayat Lamaran</label>
-                        <p className="text-[11px] text-muted-theme mt-0.5">
-                          Pilih lokasi pencatatan hasil lamaran kerja. Database lokal (SQLite) direkomendasikan untuk performa maksimal.
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        {/* Option 1: SQLite DB (Default) */}
-                        <button
-                          type="button"
-                          onClick={() => setConfig({ ...config, storageType: 'sqlite' })}
-                          className={`p-4 rounded-2xl border text-left transition relative flex flex-col justify-between ${
-                            (config.storageType || 'sqlite') === 'sqlite'
-                              ? 'bg-orange-500/10 border-orange-500 text-main-theme shadow-sm ring-1 ring-orange-500/30'
-                              : 'card-subtle-theme border-subtle-theme text-muted-theme hover:opacity-90'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="w-8 h-8 rounded-xl bg-orange-500/15 text-orange-500 flex items-center justify-center font-bold text-xs">
-                              <Database className="w-4 h-4" />
-                            </div>
-                            {(config.storageType || 'sqlite') === 'sqlite' && (
-                              <div className="flex items-center gap-1 text-[10px] font-semibold text-orange-600 dark:text-orange-400 bg-orange-500/15 px-2 py-0.5 rounded-full">
-                                <Check className="w-3 h-3" />
-                                <span>Default</span>
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <div className="text-xs font-semibold text-main-theme">Database SQLite</div>
-                            <div className="text-[11px] text-muted-theme mt-0.5">
-                              Paling cepat, zero-latency, pencarian duplikat instan (0.1ms) tanpa kuota.
-                            </div>
-                          </div>
-                        </button>
-
-                        {/* Option 2: JSON File */}
-                        <button
-                          type="button"
-                          onClick={() => setConfig({ ...config, storageType: 'json' })}
-                          className={`p-4 rounded-2xl border text-left transition relative flex flex-col justify-between ${
-                            config.storageType === 'json'
-                              ? 'bg-sky-500/10 border-sky-500 text-main-theme shadow-sm ring-1 ring-sky-500/30'
-                              : 'card-subtle-theme border-subtle-theme text-muted-theme hover:opacity-90'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="w-8 h-8 rounded-xl bg-sky-500/15 text-sky-500 flex items-center justify-center font-bold text-xs">
-                              <FileJson className="w-4 h-4" />
-                            </div>
-                            {config.storageType === 'json' && (
-                              <div className="flex items-center gap-1 text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-500/15 px-2 py-0.5 rounded-full">
-                                <Check className="w-3 h-3" />
-                                <span>Aktif</span>
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <div className="text-xs font-semibold text-main-theme">Local JSON File</div>
-                            <div className="text-[11px] text-muted-theme mt-0.5">
-                              Tersimpan di `applied_jobs.json`. Mudah dibaca manusia & diedit manual.
-                            </div>
-                          </div>
-                        </button>
-
-                        {/* Option 3: Google Sheets */}
-                        <button
-                          type="button"
-                          onClick={() => setConfig({ ...config, storageType: 'sheets' })}
-                          className={`p-4 rounded-2xl border text-left transition relative flex flex-col justify-between ${
-                            config.storageType === 'sheets'
-                              ? 'bg-emerald-500/10 border-emerald-500 text-main-theme shadow-sm ring-1 ring-emerald-500/30'
-                              : 'card-subtle-theme border-subtle-theme text-muted-theme hover:opacity-90'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center font-bold text-xs">
-                              <FileSpreadsheet className="w-4 h-4" />
-                            </div>
-                            {config.storageType === 'sheets' && (
-                              <div className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full">
-                                <Check className="w-3 h-3" />
-                                <span>Aktif</span>
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <div className="text-xs font-semibold text-main-theme">Google Sheets API</div>
-                            <div className="text-[11px] text-muted-theme mt-0.5">
-                              Sinkronisasi cloud ke spreadsheet Google Drive secara real-time.
-                            </div>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Google Sheets Settings (Always visible or customizable) */}
-                    <div className={`space-y-4 pt-4 border-t border-subtle-theme transition-all ${
-                      config.storageType === 'sheets' ? 'opacity-100' : 'opacity-80'
-                    }`}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-main-theme">
-                          <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
-                          <span>Kredensial &amp; Konfigurasi Google Sheets</span>
-                        </div>
-                        {config.storageType !== 'sheets' && (
-                          <span className="text-[11px] text-muted-theme bg-slate-500/10 px-2 py-0.5 rounded border border-subtle-theme">
-                            Hanya diperlukan bila storage Google Sheets dipilih
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <label className="block text-xs font-medium text-main-theme">Spreadsheet ID</label>
-                            <span className="text-[10px] text-muted-theme bg-slate-500/10 px-1.5 py-0.5 rounded border border-subtle-theme">
-                              {config.storageType === 'sheets' ? 'Wajib' : 'Opsional'}
-                            </span>
-                          </div>
-                          <input
-                            type="text"
-                            value={config.spreadsheetId || ''}
-                            onChange={(e) => setConfig({ ...config, spreadsheetId: e.target.value })}
-                            className="w-full input-theme border rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-orange-500 font-mono transition"
-                            placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
-                          />
-                        </div>
-
-                        <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <label className="block text-xs font-medium text-main-theme">Nama Sheet Tab</label>
-                            <span className="text-[10px] text-muted-theme bg-slate-500/10 px-1.5 py-0.5 rounded border border-subtle-theme">Opsional</span>
-                          </div>
-                          <input
-                            type="text"
-                            value={config.sheetName || 'Sheet1'}
-                            onChange={(e) => setConfig({ ...config, sheetName: e.target.value })}
-                            className="w-full input-theme border rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-orange-500 transition"
-                            placeholder="Sheet1"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-xs font-medium text-main-theme">
-                            Google Credentials JSON (Service Account)
-                          </label>
-                          <span className="text-[10px] text-muted-theme bg-slate-500/10 px-1.5 py-0.5 rounded border border-subtle-theme">
-                            {config.storageType === 'sheets' ? 'Wajib' : 'Opsional'}
-                          </span>
-                        </div>
-                        <textarea
-                          rows={4}
-                          value={config.googleCredentialsJson || ''}
-                          onChange={(e) => setConfig({ ...config, googleCredentialsJson: e.target.value })}
-                          className="w-full input-theme border rounded-xl p-3 text-xs focus:outline-none focus:border-orange-500 font-mono transition"
-                          placeholder='{"type": "service_account", "project_id": "...", ...}'
-                        />
-                      </div>
-                    </div>
-
-                    {/* AI Gateway & Multi-Provider Settings */}
-                    <div id="field-step3-ai" className="space-y-4 pt-4 border-t border-subtle-theme transition-all">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <Bot className="w-4 h-4 text-orange-500" />
-                            <span className="text-xs font-semibold text-main-theme">Pengaturan AI Model &amp; Router Gateway</span>
-                            {readinessMetrics.hasAi ? (
-                              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
-                                <Check className="w-3 h-3" />
-                                <span>AI Siap</span>
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-semibold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
-                                Wajib Diisi
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-muted-theme mt-0.5">
-                            Kelola endpoint AI Anda. Anda dapat menambahkan Google Gemini, 9Router, OpenRouter, atau server AI kustom berapapun tanpa batas dengan auto-fallback.
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 sm:gap-2 self-start sm:self-auto flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const geminiCount = (config.aiEndpoints || []).filter(e => e.type === 'gemini').length;
-                              const newEndpoint: AiEndpointConfig = {
-                                id: `ep-gemini-${Date.now()}`,
-                                name: `Google Gemini (Akun ${geminiCount + 1})`,
-                                type: 'gemini',
-                                baseUrl: '',
-                                apiKey: '',
-                                model: 'gemini-2.5-flash',
-                                isActive: false,
-                              };
-                              const list = [...(config.aiEndpoints || []), newEndpoint];
-                              setConfig({ ...config, aiEndpoints: list });
-                              toast.success(`Akun Gemini baru ditambahkan! Silakan masukkan API Key.`);
-                            }}
-                            className="px-2.5 sm:px-3 py-1.5 rounded-xl card-subtle-theme border border-subtle-theme text-main-theme hover:opacity-90 text-xs font-medium transition flex items-center gap-1.5 shadow-sm"
-                            title="Tambah akun Google Gemini baru (dengan API Key cadangan/kedua)"
-                          >
-                            <Plus className="w-3.5 h-3.5 text-orange-500" />
-                            <span>+ Akun Gemini</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const routerCount = (config.aiEndpoints || []).filter(e => e.type === 'openai_compatible').length;
-                              const newEndpoint: AiEndpointConfig = {
-                                id: `ep-router-${Date.now()}`,
-                                name: `OpenAI Gateway ${routerCount + 1}`,
-                                type: 'openai_compatible',
-                                baseUrl: 'https://api.9router.com/v1',
-                                apiKey: '',
-                                model: 'google/gemini-2.5-flash',
-                                isActive: false,
-                              };
-                              const list = [...(config.aiEndpoints || []), newEndpoint];
-                              setConfig({ ...config, aiEndpoints: list });
-                              toast.success('Provider Gateway (9Router/Custom) baru ditambahkan!');
-                            }}
-                            className="px-2.5 sm:px-3 py-1.5 rounded-xl card-subtle-theme border border-subtle-theme text-main-theme hover:opacity-90 text-xs font-medium transition flex items-center gap-1.5 shadow-sm"
-                            title="Tambah provider OpenAI-Compatible (9Router, Groq, DeepSeek, OpenRouter)"
-                          >
-                            <Plus className="w-3.5 h-3.5 text-orange-500" />
-                            <span>+ Router / OpenAI</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={isTestingAi || !readinessMetrics.hasAi}
-                            onClick={handleTestAi}
-                            className="px-3 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-500 border border-orange-500/30 text-xs font-medium transition flex items-center gap-1.5 disabled:opacity-50 shadow-sm"
-                          >
-                            <Sparkles className="w-3.5 h-3.5" />
-                            <span>{isTestingAi ? 'Menguji...' : 'Uji Koneksi AI'}</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Dynamic Provider Cards List */}
-                      <div className="space-y-3">
-                        {(config.aiEndpoints || []).map((endpoint, index) => {
-                          const isEndpointActive = (config.activeAiEndpointId === endpoint.id) || (!config.activeAiEndpointId && index === 0);
-
-                          return (
-                            <div
-                              key={endpoint.id}
-                              className={`p-4 rounded-2xl border transition-all space-y-3 ${
-                                isEndpointActive
-                                  ? 'card-subtle-theme border-orange-500/60 shadow-sm ring-1 ring-orange-500/20'
-                                  : 'card-theme border-subtle-theme'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between gap-3 border-b border-subtle-theme pb-2.5 flex-wrap">
-                                <div className="flex items-center gap-2.5 flex-1 min-w-0 flex-wrap">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const updated = (config.aiEndpoints || []).map((e) => ({
-                                        ...e,
-                                        isActive: e.id === endpoint.id,
-                                      }));
-                                      setConfig({
-                                        ...config,
-                                        aiEndpoints: updated,
-                                        activeAiEndpointId: endpoint.id,
-                                        ...(endpoint.type === 'gemini' && endpoint.apiKey ? { geminiApiKey: endpoint.apiKey } : {}),
-                                        ...(endpoint.type === 'openai_compatible' && endpoint.apiKey ? { customAiApiKey: endpoint.apiKey } : {})
-                                      });
-                                      toast.info(`Provider utama diubah ke: ${endpoint.name}`);
-                                    }}
-                                    className={`w-4 h-4 rounded-full border flex items-center justify-center transition shrink-0 ${
-                                      isEndpointActive ? 'border-orange-500 bg-orange-500 text-white' : 'border-slate-400'
-                                    }`}
-                                    title={isEndpointActive ? 'Provider Utama (Aktif)' : 'Jadikan Provider Utama'}
-                                  >
-                                    {isEndpointActive && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                                  </button>
-
-                                  <input
-                                    type="text"
-                                    value={endpoint.name}
-                                    onChange={(e) => {
-                                      const updated = (config.aiEndpoints || []).map((item) =>
-                                        item.id === endpoint.id ? { ...item, name: e.target.value } : item
-                                      );
-                                      setConfig({ ...config, aiEndpoints: updated });
-                                    }}
-                                    className="text-xs font-semibold text-main-theme bg-transparent border-b border-transparent hover:border-subtle-theme focus:border-orange-500 focus:outline-none px-1 py-0.5 max-w-[220px]"
-                                    placeholder="Nama Provider"
-                                  />
-
-                                  <select
-                                    value={endpoint.type}
-                                    onChange={(e) => {
-                                      const newType = e.target.value as 'gemini' | 'openai_compatible';
-                                      const updated = (config.aiEndpoints || []).map((item) =>
-                                        item.id === endpoint.id
-                                          ? {
-                                              ...item,
-                                              type: newType,
-                                              model: newType === 'gemini' ? 'gemini-2.5-flash' : 'google/gemini-2.5-flash',
-                                              baseUrl: newType === 'gemini' ? '' : (item.baseUrl || 'https://api.9router.com/v1')
-                                            }
-                                          : item
-                                      );
-                                      setConfig({ ...config, aiEndpoints: updated });
-                                    }}
-                                    className="text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-main-theme border border-subtle-theme rounded-md px-2 py-0.5 focus:outline-none focus:border-orange-500 cursor-pointer shrink-0"
-                                    title="Pilih jenis engine API"
-                                  >
-                                    <option value="gemini">Google Gemini Native</option>
-                                    <option value="openai_compatible">OpenAI-Compatible (9Router / Custom)</option>
-                                  </select>
-
-                                  {isEndpointActive && (
-                                    <span className="text-[10px] font-semibold text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20 shrink-0">
-                                      Prioritas Utama
-                                    </span>
-                                  )}
-                                </div>
-
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <button
-                                    type="button"
-                                    disabled={!endpoint.apiKey?.trim() || isTestingAi}
-                                    onClick={async () => {
-                                      setIsTestingAi(true);
-                                      const toastId = toast.loading(`Menguji koneksi ke ${endpoint.name}...`);
-                                      try {
-                                        const res = await fetch('/api/test-ai', {
-                                          method: 'POST',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({ endpoint }),
-                                        });
-                                        const data = await res.json();
-                                        if (data.success) {
-                                          toast.success(`Koneksi ke ${endpoint.name} Berhasil! (${endpoint.model})`, { id: toastId });
-                                        } else {
-                                          toast.error(`${endpoint.name} Gagal: ${data.error}`, { id: toastId });
-                                        }
-                                      } catch (err: any) {
-                                        toast.error(`Gagal menguji ${endpoint.name}: ${err?.message || err}`, { id: toastId });
-                                      } finally {
-                                        setIsTestingAi(false);
-                                      }
-                                    }}
-                                    className="px-2.5 py-1 rounded-lg border border-subtle-theme card-theme hover:text-orange-500 text-muted-theme text-[11px] font-medium flex items-center gap-1 transition disabled:opacity-50"
-                                    title="Uji koneksi khusus endpoint ini"
-                                  >
-                                    <Sparkles className="w-3 h-3 text-orange-400" />
-                                    <span>Tes Endpoint</span>
-                                  </button>
-
-                                  {(config.aiEndpoints || []).length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const filtered = (config.aiEndpoints || []).filter((e) => e.id !== endpoint.id);
-                                        const nextActiveId = isEndpointActive ? (filtered[0]?.id || '') : config.activeAiEndpointId;
-                                        setConfig({ ...config, aiEndpoints: filtered, activeAiEndpointId: nextActiveId });
-                                        toast.info(`Endpoint "${endpoint.name}" dihapus`);
-                                      }}
-                                      className="p-1.5 rounded-lg hover:bg-rose-500/10 text-muted-theme hover:text-rose-500 transition"
-                                      title="Hapus provider ini"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Form Inputs for this Provider */}
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                                {endpoint.type === 'openai_compatible' ? (
-                                  <>
-                                    <div>
-                                      <label className="block text-[11px] font-medium text-main-theme mb-1">Base URL Endpoint</label>
-                                      <input
-                                        type="text"
-                                        value={endpoint.baseUrl}
-                                        onChange={(e) => {
-                                          const updated = (config.aiEndpoints || []).map((item) =>
-                                            item.id === endpoint.id ? { ...item, baseUrl: e.target.value } : item
-                                          );
-                                          setConfig({ ...config, aiEndpoints: updated });
-                                        }}
-                                        className="w-full input-theme border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-orange-500"
-                                        placeholder="https://api.9router.com/v1"
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-[11px] font-medium text-main-theme mb-1">Nama Model</label>
-                                      <input
-                                        type="text"
-                                        value={endpoint.model}
-                                        onChange={(e) => {
-                                          const updated = (config.aiEndpoints || []).map((item) =>
-                                            item.id === endpoint.id ? { ...item, model: e.target.value } : item
-                                          );
-                                          setConfig({ ...config, aiEndpoints: updated });
-                                        }}
-                                        className="w-full input-theme border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-orange-500"
-                                        placeholder="google/gemini-2.5-flash atau gpt-4o-mini"
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <div className="flex items-center justify-between mb-1">
-                                        <label className="block text-[11px] font-medium text-main-theme">API Key / Token</label>
-                                        <span className="text-[10px] font-semibold text-orange-600 dark:text-orange-400">Wajib</span>
-                                      </div>
-                                      <input
-                                        type="password"
-                                        value={endpoint.apiKey}
-                                        onChange={(e) => {
-                                          const updated = (config.aiEndpoints || []).map((item) =>
-                                            item.id === endpoint.id ? { ...item, apiKey: e.target.value } : item
-                                          );
-                                          const isCurrentActive = (config.activeAiEndpointId === endpoint.id) || (!config.activeAiEndpointId && index === 0);
-                                          setConfig({
-                                            ...config,
-                                            aiEndpoints: updated,
-                                            ...(isCurrentActive ? { customAiApiKey: e.target.value } : {})
-                                          });
-                                        }}
-                                        className="w-full input-theme border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-orange-500"
-                                        placeholder="sk-..."
-                                      />
-                                    </div>
-                                  </>
-                                ) : (
-                                  <>
-                                    <div className="md:col-span-2">
-                                      <div className="flex items-center justify-between mb-1">
-                                        <label className="block text-[11px] font-medium text-main-theme">Gemini API Key</label>
-                                        <span className="text-[10px] font-semibold text-orange-600 dark:text-orange-400">Wajib</span>
-                                      </div>
-                                      <input
-                                        type="password"
-                                        value={endpoint.apiKey}
-                                        onChange={(e) => {
-                                          const updated = (config.aiEndpoints || []).map((item) =>
-                                            item.id === endpoint.id ? { ...item, apiKey: e.target.value } : item
-                                          );
-                                          const isCurrentActive = (config.activeAiEndpointId === endpoint.id) || (!config.activeAiEndpointId && index === 0);
-                                          setConfig({
-                                            ...config,
-                                            aiEndpoints: updated,
-                                            ...(isCurrentActive ? { geminiApiKey: e.target.value } : {})
-                                          });
-                                        }}
-                                        className="w-full input-theme border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-orange-500"
-                                        placeholder="AIzaSy..."
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-[11px] font-medium text-main-theme mb-1">Model Gemini</label>
-                                      <input
-                                        type="text"
-                                        value={endpoint.model || 'gemini-2.5-flash'}
-                                        onChange={(e) => {
-                                          const updated = (config.aiEndpoints || []).map((item) =>
-                                            item.id === endpoint.id ? { ...item, model: e.target.value } : item
-                                          );
-                                          setConfig({ ...config, aiEndpoints: updated });
-                                        }}
-                                        className="w-full input-theme border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-orange-500"
-                                        placeholder="gemini-2.5-flash"
-                                      />
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      <div className="p-3.5 rounded-xl card-subtle-theme border border-subtle-theme text-[11px] text-muted-theme flex items-center justify-between">
-                        <span>
-                          ℹ️ <strong>Auto Failover:</strong> Jika provider prioritas utama mengalami limit/gangguan, sistem otomatis beralih ke provider berikutnya dalam daftar.
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Form Footer Action Navigation */}
                 <div className="flex items-center justify-between pt-4 border-t border-subtle-theme">
                   <div className="flex items-center gap-2">
@@ -4937,7 +4453,7 @@ export default function Home() {
                       {isSavingConfig ? 'Menyimpan...' : 'Simpan Data'}
                     </button>
 
-                    {wizardStep < 3 ? (
+                    {wizardStep < 2 ? (
                       <button
                         type="button"
                         onClick={async () => {
@@ -4948,17 +4464,17 @@ export default function Home() {
                         }}
                         className="px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-medium flex items-center gap-2 transition shadow-sm"
                       >
-                        <span>Lanjut Langkah Berikutnya</span>
+                        <span>Lanjut ke Target Loker &amp; Platform</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     ) : (
                       <button
                         type="button"
                         onClick={async () => {
-                          const isValid = await handleSaveConfig(undefined, false, 3);
+                          const isValid = await handleSaveConfig(undefined, false, 2);
                           if (isValid) {
                             setActiveTab('logs');
-                            toast.success('Konfigurasi lengkap tersimpan! Siap menjalankan bot.');
+                            toast.success('Konfigurasi target kerja tersimpan! Siap menjalankan bot.');
                           }
                         }}
                         className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium flex items-center gap-2 transition shadow-sm"
@@ -5411,6 +4927,711 @@ export default function Home() {
           {/* TAB 6: TALENT SCOUT & SOURCING ENGINE (OUTSOURCING / HRIS) */}
           {activeTab === 'talent' && (
             <TalentScoutTab />
+          )}
+
+          {/* TAB 7: PENGATURAN SISTEM & INTEGRASI */}
+          {activeTab === 'settings' && (
+            <div id="tour-settings-page" className="space-y-6">
+              {/* Header Card */}
+              <div className="p-6 md:p-8 rounded-3xl card-theme border border-subtle-theme shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-orange-500/15 text-orange-500 flex items-center justify-center shrink-0">
+                    <Settings2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-main-theme">Pengaturan Sistem &amp; Integrasi</h2>
+                    <p className="text-xs text-muted-theme mt-0.5">
+                      Kelola konfigurasi model AI (OpenAI API), media penyimpanan riwayat lamaran, dan otomasi browser.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <button
+                    type="button"
+                    disabled={isTestingAi || !readinessMetrics.hasAi}
+                    onClick={handleTestAi}
+                    className="px-4 py-2.5 rounded-xl card-subtle-theme hover:opacity-90 border border-subtle-theme text-main-theme text-xs font-medium transition flex items-center gap-2 disabled:opacity-40 shadow-xs focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none"
+                    title="Uji koneksi ke endpoint AI yang aktif"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-orange-500" aria-hidden="true" />
+                    <span>{isTestingAi ? 'Menguji AI...' : 'Uji Koneksi AI'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isSavingConfig}
+                    onClick={() => handleSaveConfig()}
+                    className="px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold flex items-center gap-2 transition shadow-sm disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none"
+                  >
+                    <Save className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>{isSavingConfig ? 'Menyimpan...' : 'Simpan Pengaturan'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Main Settings Card */}
+              <div className="p-6 md:p-8 rounded-3xl card-theme border border-subtle-theme shadow-sm space-y-8">
+                {/* 1. PENGATURAN AI (OPENAI API) */}
+                <div id="settings-ai-section" className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-subtle-theme pb-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Bot className="w-4 h-4 text-orange-500" aria-hidden="true" />
+                        <h3 className="text-sm font-semibold text-main-theme">Pengaturan AI (OpenAI API)</h3>
+                        {readinessMetrics.hasAi ? (
+                          <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
+                            <Check className="w-3 h-3" aria-hidden="true" />
+                            <span>AI Siap</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-rose-500 bg-rose-500/10 px-2.5 py-0.5 rounded-full border border-rose-500/20">
+                            Wajib Diisi
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-theme mt-1">
+                        Fitur otomatisasi formulir, Q&amp;A HRD, dan generator cover letter menggunakan standar OpenAI API.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isTestingAi || !readinessMetrics.hasAi}
+                      onClick={handleTestAi}
+                      className="self-start sm:self-auto px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium transition flex items-center gap-1.5 disabled:opacity-40 shadow-xs focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+                      <span>{isTestingAi ? 'Menguji Koneksi…' : 'Uji Koneksi AI'}</span>
+                    </button>
+                  </div>
+
+                  {/* Primary AI Provider Card */}
+                  {(() => {
+                    const rawEndpoints = config.aiEndpoints && config.aiEndpoints.length > 0
+                      ? config.aiEndpoints
+                      : [
+                          {
+                            id: 'ep-primary',
+                            name: '9Router Gateway',
+                            type: 'openai_compatible' as const,
+                            baseUrl: config.customAiBaseUrl || 'https://api.9router.com/v1',
+                            apiKey: config.customAiApiKey || config.geminiApiKey || '',
+                            model: config.customAiModel || 'google/gemini-2.5-flash',
+                            isActive: true,
+                          },
+                        ];
+                    const primaryEp = rawEndpoints[0];
+                    const isPrimaryVisible = Boolean(visibleKeyIds[primaryEp.id]);
+
+                    const detectPreset = (ep: AiEndpointConfig) => {
+                      const url = (ep.baseUrl || '').toLowerCase();
+                      if (url.includes('9router')) return '9router';
+                      if (url.includes('groq')) return 'groq';
+                      if (url.includes('openrouter')) return 'openrouter';
+                      if (url.includes('deepseek')) return 'deepseek';
+                      if (url.includes('generativelanguage.googleapis.com')) return 'gemini';
+                      if (url.includes('11434') || url.includes('localhost')) return 'ollama';
+                      if (url.includes('openai.com')) return 'openai';
+                      return 'custom';
+                    };
+
+                    const handlePresetChange = (index: number, preset: string) => {
+                      const updated = [...rawEndpoints];
+                      const ep = { ...updated[index] };
+                      ep.type = 'openai_compatible';
+                      if (preset === '9router') {
+                        ep.name = '9Router AI Gateway';
+                        ep.baseUrl = 'https://api.9router.com/v1';
+                        ep.model = 'google/gemini-2.5-flash';
+                      } else if (preset === 'openai') {
+                        ep.name = 'OpenAI Official';
+                        ep.baseUrl = 'https://api.openai.com/v1';
+                        ep.model = 'gpt-4o-mini';
+                      } else if (preset === 'groq') {
+                        ep.name = 'Groq Cloud';
+                        ep.baseUrl = 'https://api.groq.com/openai/v1';
+                        ep.model = 'llama-3.3-70b-versatile';
+                      } else if (preset === 'openrouter') {
+                        ep.name = 'OpenRouter';
+                        ep.baseUrl = 'https://openrouter.ai/api/v1';
+                        ep.model = 'google/gemini-2.5-flash';
+                      } else if (preset === 'deepseek') {
+                        ep.name = 'DeepSeek Official';
+                        ep.baseUrl = 'https://api.deepseek.com/v1';
+                        ep.model = 'deepseek-chat';
+                      } else if (preset === 'gemini') {
+                        ep.name = 'Google Gemini (OpenAI Endpoint)';
+                        ep.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai';
+                        ep.model = 'gemini-2.5-flash';
+                      } else if (preset === 'ollama') {
+                        ep.name = 'Ollama Lokal';
+                        ep.baseUrl = 'http://localhost:11434/v1';
+                        ep.model = 'llama3.2';
+                      }
+                      updated[index] = ep;
+                      setConfig({
+                        ...config,
+                        aiEndpoints: updated,
+                        ...(index === 0 ? {
+                          customAiBaseUrl: ep.baseUrl,
+                          customAiModel: ep.model,
+                        } : {}),
+                      });
+                    };
+
+                    return (
+                      <div className="space-y-4">
+                        {/* Primary Provider */}
+                        <div className="p-4 sm:p-5 rounded-2xl border card-subtle-theme border-orange-500/40 shadow-xs space-y-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-orange-600 dark:text-orange-400 flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-orange-500 inline-block animate-pulse" aria-hidden="true" />
+                              Provider AI Utama
+                            </span>
+                            <span className="text-[10px] font-mono text-muted-theme bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-subtle-theme">
+                              Default Utama
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                            <div>
+                              <label htmlFor="settings-primary-ai-preset" className="block text-xs font-medium text-main-theme mb-1.5">
+                                Pilih Layanan / Provider AI
+                              </label>
+                              <select
+                                id="settings-primary-ai-preset"
+                                value={detectPreset(primaryEp)}
+                                onChange={(e) => handlePresetChange(0, e.target.value)}
+                                className="w-full input-theme border border-subtle-theme rounded-xl px-3.5 py-2.5 text-xs font-medium focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none cursor-pointer"
+                              >
+                                <option value="9router">9Router AI Gateway (Direkomendasikan)</option>
+                                <option value="openai">OpenAI Official (gpt-4o-mini)</option>
+                                <option value="groq">Groq Cloud (Super Cepat)</option>
+                                <option value="openrouter">OpenRouter</option>
+                                <option value="deepseek">DeepSeek Official</option>
+                                <option value="gemini">Google Gemini (OpenAI Endpoint)</option>
+                                <option value="ollama">Ollama (Localhost)</option>
+                                <option value="custom">Kustom OpenAI-Compatible</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <label htmlFor="settings-primary-ai-key" className="block text-xs font-medium text-main-theme">
+                                  API Key / Token
+                                </label>
+                                <span className="text-[10px] font-semibold text-orange-600 dark:text-orange-400">Wajib Diisi</span>
+                              </div>
+                              <div className="relative">
+                                <input
+                                  id="settings-primary-ai-key"
+                                  type={isPrimaryVisible ? 'text' : 'password'}
+                                  value={primaryEp.apiKey}
+                                  onChange={(e) => {
+                                    const updated = [...rawEndpoints];
+                                    updated[0] = { ...updated[0], apiKey: e.target.value };
+                                    setConfig({
+                                      ...config,
+                                      aiEndpoints: updated,
+                                      customAiApiKey: e.target.value,
+                                      geminiApiKey: e.target.value.startsWith('AIzaSy') ? e.target.value : config.geminiApiKey,
+                                    });
+                                  }}
+                                  autoComplete="off"
+                                  spellCheck={false}
+                                  placeholder="sk-… atau token API provider Anda"
+                                  className="w-full input-theme border border-subtle-theme rounded-xl pl-3.5 pr-9 py-2.5 text-xs font-mono focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setVisibleKeyIds((prev) => ({ ...prev, [primaryEp.id]: !prev[primaryEp.id] }))}
+                                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-theme hover:text-main-theme p-1 rounded focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none"
+                                  aria-label={isPrimaryVisible ? 'Sembunyikan API Key' : 'Tampilkan API Key'}
+                                >
+                                  {isPrimaryVisible ? <EyeOff className="w-3.5 h-3.5" aria-hidden="true" /> : <Eye className="w-3.5 h-3.5" aria-hidden="true" />}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-1">
+                            <div>
+                              <label htmlFor="settings-primary-ai-url" className="block text-xs font-medium text-main-theme mb-1.5">
+                                Base URL Endpoint
+                              </label>
+                              <input
+                                id="settings-primary-ai-url"
+                                type="text"
+                                value={primaryEp.baseUrl}
+                                onChange={(e) => {
+                                  const updated = [...rawEndpoints];
+                                  updated[0] = { ...updated[0], baseUrl: e.target.value };
+                                  setConfig({ ...config, aiEndpoints: updated, customAiBaseUrl: e.target.value });
+                                }}
+                                autoComplete="off"
+                                spellCheck={false}
+                                placeholder="https://api.9router.com/v1"
+                                className="w-full input-theme border border-subtle-theme rounded-xl px-3.5 py-2.5 text-xs font-mono focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none"
+                              />
+                            </div>
+
+                            <div>
+                              <label htmlFor="settings-primary-ai-model" className="block text-xs font-medium text-main-theme mb-1.5">
+                                Nama Model AI
+                              </label>
+                              <input
+                                id="settings-primary-ai-model"
+                                type="text"
+                                value={primaryEp.model}
+                                onChange={(e) => {
+                                  const updated = [...rawEndpoints];
+                                  updated[0] = { ...updated[0], model: e.target.value };
+                                  setConfig({ ...config, aiEndpoints: updated, customAiModel: e.target.value });
+                                }}
+                                autoComplete="off"
+                                spellCheck={false}
+                                placeholder="google/gemini-2.5-flash atau gpt-4o-mini"
+                                className="w-full input-theme border border-subtle-theme rounded-xl px-3.5 py-2.5 text-xs font-mono focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Secondary Endpoints (Failover Backup Accounts) */}
+                        {rawEndpoints.slice(1).map((backupEp, bIndex) => {
+                          const actualIndex = bIndex + 1;
+                          const isBackupVisible = Boolean(visibleKeyIds[backupEp.id]);
+
+                          return (
+                            <div key={backupEp.id} className="p-4 sm:p-5 rounded-2xl border card-theme border-subtle-theme space-y-4 shadow-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium text-muted-theme flex items-center gap-2">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block" aria-hidden="true" />
+                                  Cadangan #{actualIndex} (Auto-Failover)
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const filtered = rawEndpoints.filter((_, idx) => idx !== actualIndex);
+                                    setConfig({ ...config, aiEndpoints: filtered });
+                                    toast.info(`Endpoint cadangan #${actualIndex} dihapus`);
+                                  }}
+                                  className="p-1.5 rounded-lg text-muted-theme hover:text-rose-500 hover:bg-rose-500/10 transition-colors focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none"
+                                  aria-label={`Hapus endpoint cadangan #${actualIndex}`}
+                                  title="Hapus endpoint cadangan ini"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                                </button>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                                <div>
+                                  <label htmlFor={`settings-backup-ai-preset-${backupEp.id}`} className="block text-xs font-medium text-main-theme mb-1.5">
+                                    Pilih Layanan Cadangan
+                                  </label>
+                                  <select
+                                    id={`settings-backup-ai-preset-${backupEp.id}`}
+                                    value={detectPreset(backupEp)}
+                                    onChange={(e) => handlePresetChange(actualIndex, e.target.value)}
+                                    className="w-full input-theme border border-subtle-theme rounded-xl px-3.5 py-2.5 text-xs font-medium focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none cursor-pointer"
+                                  >
+                                    <option value="9router">9Router AI Gateway</option>
+                                    <option value="openai">OpenAI Official</option>
+                                    <option value="groq">Groq Cloud (Super Cepat)</option>
+                                    <option value="openrouter">OpenRouter</option>
+                                    <option value="deepseek">DeepSeek Official</option>
+                                    <option value="gemini">Google Gemini (OpenAI Endpoint)</option>
+                                    <option value="ollama">Ollama (Localhost)</option>
+                                    <option value="custom">Kustom OpenAI-Compatible</option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label htmlFor={`settings-backup-ai-key-${backupEp.id}`} className="block text-xs font-medium text-main-theme mb-1.5">
+                                    API Key Cadangan
+                                  </label>
+                                  <div className="relative">
+                                    <input
+                                      id={`settings-backup-ai-key-${backupEp.id}`}
+                                      type={isBackupVisible ? 'text' : 'password'}
+                                      value={backupEp.apiKey}
+                                      onChange={(e) => {
+                                        const updated = [...rawEndpoints];
+                                        updated[actualIndex] = { ...updated[actualIndex], apiKey: e.target.value };
+                                        setConfig({ ...config, aiEndpoints: updated });
+                                      }}
+                                      autoComplete="off"
+                                      spellCheck={false}
+                                      placeholder="sk-… atau token cadangan"
+                                      className="w-full input-theme border border-subtle-theme rounded-xl pl-3.5 pr-9 py-2.5 text-xs font-mono focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setVisibleKeyIds((prev) => ({ ...prev, [backupEp.id]: !prev[backupEp.id] }))}
+                                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-theme hover:text-main-theme p-1 rounded focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none"
+                                      aria-label={isBackupVisible ? 'Sembunyikan API Key' : 'Tampilkan API Key'}
+                                    >
+                                      {isBackupVisible ? <EyeOff className="w-3.5 h-3.5" aria-hidden="true" /> : <Eye className="w-3.5 h-3.5" aria-hidden="true" />}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-1">
+                                <div>
+                                  <label htmlFor={`settings-backup-ai-url-${backupEp.id}`} className="block text-xs font-medium text-main-theme mb-1.5">
+                                    Base URL Endpoint
+                                  </label>
+                                  <input
+                                    id={`settings-backup-ai-url-${backupEp.id}`}
+                                    type="text"
+                                    value={backupEp.baseUrl}
+                                    onChange={(e) => {
+                                      const updated = [...rawEndpoints];
+                                      updated[actualIndex] = { ...updated[actualIndex], baseUrl: e.target.value };
+                                      setConfig({ ...config, aiEndpoints: updated });
+                                    }}
+                                    autoComplete="off"
+                                    spellCheck={false}
+                                    placeholder="https://api.openai.com/v1"
+                                    className="w-full input-theme border border-subtle-theme rounded-xl px-3.5 py-2.5 text-xs font-mono focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label htmlFor={`settings-backup-ai-model-${backupEp.id}`} className="block text-xs font-medium text-main-theme mb-1.5">
+                                    Nama Model AI
+                                  </label>
+                                  <input
+                                    id={`settings-backup-ai-model-${backupEp.id}`}
+                                    type="text"
+                                    value={backupEp.model}
+                                    onChange={(e) => {
+                                      const updated = [...rawEndpoints];
+                                      updated[actualIndex] = { ...updated[actualIndex], model: e.target.value };
+                                      setConfig({ ...config, aiEndpoints: updated });
+                                    }}
+                                    autoComplete="off"
+                                    spellCheck={false}
+                                    placeholder="gpt-4o-mini"
+                                    className="w-full input-theme border border-subtle-theme rounded-xl px-3.5 py-2.5 text-xs font-mono focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* Add Backup Button */}
+                        <div className="flex items-center justify-between pt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newBackup: AiEndpointConfig = {
+                                id: `ep-backup-${Date.now()}`,
+                                name: `Cadangan ${rawEndpoints.length}`,
+                                type: 'openai_compatible',
+                                baseUrl: 'https://api.openai.com/v1',
+                                apiKey: '',
+                                model: 'gpt-4o-mini',
+                                isActive: false,
+                              };
+                              setConfig({ ...config, aiEndpoints: [...rawEndpoints, newBackup] });
+                              toast.info('Formulir endpoint cadangan baru ditambahkan');
+                            }}
+                            className="px-3.5 py-2 rounded-xl border border-dashed border-subtle-theme hover:border-orange-500/50 text-muted-theme hover:text-orange-500 text-xs font-medium transition-colors flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none"
+                          >
+                            <Plus className="w-3.5 h-3.5 text-orange-500" aria-hidden="true" />
+                            <span>Tambah Endpoint Cadangan (Failover)</span>
+                          </button>
+
+                          <p className="text-[11px] text-muted-theme hidden sm:block">
+                            💡 Bila kuota endpoint utama habis, sistem secara otomatis beralih ke cadangan.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* 2. MEDIA PENYIMPANAN RIWAYAT LAMARAN */}
+                <div id="settings-storage-section" className="space-y-4 pt-6 border-t border-subtle-theme">
+                  <div>
+                    <h3 className="text-sm font-semibold text-main-theme">Media Penyimpanan Riwayat Lamaran</h3>
+                    <p className="text-xs text-muted-theme mt-0.5">
+                      Pilih lokasi pencatatan hasil lamaran kerja. Database SQLite lokal sangat direkomendasikan untuk kecepatan maksimal tanpa latency kuota.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                    {/* Option 1: SQLite DB */}
+                    <button
+                      type="button"
+                      onClick={() => setConfig({ ...config, storageType: 'sqlite' })}
+                      className={`p-4 rounded-2xl border text-left transition relative flex flex-col justify-between ${
+                        (config.storageType || 'sqlite') === 'sqlite'
+                          ? 'bg-orange-500/10 border-orange-500 text-main-theme shadow-xs ring-1 ring-orange-500/30'
+                          : 'card-subtle-theme border-subtle-theme text-muted-theme hover:opacity-90'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="w-8 h-8 rounded-xl bg-orange-500/15 text-orange-500 flex items-center justify-center font-bold text-xs">
+                          <Database className="w-4 h-4" />
+                        </div>
+                        {(config.storageType || 'sqlite') === 'sqlite' && (
+                          <div className="flex items-center gap-1 text-[10px] font-semibold text-orange-600 dark:text-orange-400 bg-orange-500/15 px-2 py-0.5 rounded-full">
+                            <Check className="w-3 h-3" />
+                            <span>Default</span>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-main-theme">Database SQLite (Rekomendasi)</div>
+                        <div className="text-[11px] text-muted-theme mt-1">
+                          Paling cepat, zero-latency, pencarian duplikat instan (0.1ms) dan tanpa batasan kuota API.
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Option 2: JSON File */}
+                    <button
+                      type="button"
+                      onClick={() => setConfig({ ...config, storageType: 'json' })}
+                      className={`p-4 rounded-2xl border text-left transition relative flex flex-col justify-between ${
+                        config.storageType === 'json'
+                          ? 'bg-sky-500/10 border-sky-500 text-main-theme shadow-xs ring-1 ring-sky-500/30'
+                          : 'card-subtle-theme border-subtle-theme text-muted-theme hover:opacity-90'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="w-8 h-8 rounded-xl bg-sky-500/15 text-sky-500 flex items-center justify-center font-bold text-xs">
+                          <FileJson className="w-4 h-4" />
+                        </div>
+                        {config.storageType === 'json' && (
+                          <div className="flex items-center gap-1 text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-500/15 px-2 py-0.5 rounded-full">
+                            <Check className="w-3 h-3" />
+                            <span>Aktif</span>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-main-theme">Local JSON File</div>
+                        <div className="text-[11px] text-muted-theme mt-1">
+                          Tersimpan di `applied_jobs.json`. Berkas teks portabel yang mudah dibaca dan diedit manual.
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Option 3: Google Sheets */}
+                    <button
+                      type="button"
+                      onClick={() => setConfig({ ...config, storageType: 'sheets' })}
+                      className={`p-4 rounded-2xl border text-left transition relative flex flex-col justify-between ${
+                        config.storageType === 'sheets'
+                          ? 'bg-emerald-500/10 border-emerald-500 text-main-theme shadow-xs ring-1 ring-emerald-500/30'
+                          : 'card-subtle-theme border-subtle-theme text-muted-theme hover:opacity-90'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center font-bold text-xs">
+                          <FileSpreadsheet className="w-4 h-4" />
+                        </div>
+                        {config.storageType === 'sheets' && (
+                          <div className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full">
+                            <Check className="w-3 h-3" />
+                            <span>Aktif</span>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-main-theme">Google Sheets API</div>
+                        <div className="text-[11px] text-muted-theme mt-1">
+                          Sinkronisasi riwayat lamaran ke spreadsheet Google Drive secara real-time.
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. KREDENSIAL GOOGLE SHEETS */}
+                <div className={`space-y-4 pt-6 border-t border-subtle-theme transition-all ${
+                  config.storageType === 'sheets' ? 'opacity-100' : 'opacity-80'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-main-theme">
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+                      <span>Kredensial &amp; Konfigurasi Google Sheets</span>
+                    </div>
+                    {config.storageType !== 'sheets' ? (
+                      <span className="text-[11px] text-muted-theme bg-slate-500/10 px-2.5 py-0.5 rounded border border-subtle-theme">
+                        Hanya diperlukan bila storage Google Sheets dipilih
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded border border-emerald-500/20">
+                        Wajib Diisi (Google Sheets Aktif)
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label htmlFor="settings-sheets-id" className="block text-xs font-medium text-main-theme">Spreadsheet ID</label>
+                        <span className="text-[10px] text-muted-theme bg-slate-500/10 px-1.5 py-0.5 rounded border border-subtle-theme">
+                          {config.storageType === 'sheets' ? 'Wajib' : 'Opsional'}
+                        </span>
+                      </div>
+                      <input
+                        id="settings-sheets-id"
+                        type="text"
+                        value={config.spreadsheetId || ''}
+                        onChange={(e) => setConfig({ ...config, spreadsheetId: e.target.value })}
+                        className="w-full input-theme border border-subtle-theme rounded-xl px-3.5 py-2.5 text-xs focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none font-mono transition"
+                        placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label htmlFor="settings-sheets-tab" className="block text-xs font-medium text-main-theme">Nama Sheet Tab</label>
+                        <span className="text-[10px] text-muted-theme bg-slate-500/10 px-1.5 py-0.5 rounded border border-subtle-theme">Opsional</span>
+                      </div>
+                      <input
+                        id="settings-sheets-tab"
+                        type="text"
+                        value={config.sheetName || 'Sheet1'}
+                        onChange={(e) => setConfig({ ...config, sheetName: e.target.value })}
+                        className="w-full input-theme border border-subtle-theme rounded-xl px-3.5 py-2.5 text-xs focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none transition"
+                        placeholder="Sheet1"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label htmlFor="settings-sheets-creds" className="block text-xs font-medium text-main-theme">
+                        Google Credentials JSON (Service Account)
+                      </label>
+                      <span className="text-[10px] text-muted-theme bg-slate-500/10 px-1.5 py-0.5 rounded border border-subtle-theme">
+                        {config.storageType === 'sheets' ? 'Wajib' : 'Opsional'}
+                      </span>
+                    </div>
+                    <textarea
+                      id="settings-sheets-creds"
+                      rows={4}
+                      value={config.googleCredentialsJson || ''}
+                      onChange={(e) => setConfig({ ...config, googleCredentialsJson: e.target.value })}
+                      className="w-full input-theme border border-subtle-theme rounded-xl p-3.5 text-xs focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none font-mono transition"
+                      placeholder='{"type": "service_account", "project_id": "...", ...}'
+                    />
+                  </div>
+                </div>
+
+                {/* 4. PREFERENSI MESIN OTOMASI & BROWSER */}
+                <div id="settings-browser-section" className="space-y-4 pt-6 border-t border-subtle-theme">
+                  <div>
+                    <h3 className="text-sm font-semibold text-main-theme">Pengaturan Browser &amp; Otomatisasi</h3>
+                    <p className="text-xs text-muted-theme mt-0.5">
+                      Sesuaikan performa eksekusi, simulasi manusia, dan tingkat keamanan mesin browser Camoufox.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    {/* Stealth Mode */}
+                    <div className="p-4 rounded-2xl border card-subtle-theme border-subtle-theme flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-main-theme">Human Stealth Simulation</div>
+                        <div className="text-[11px] text-muted-theme mt-1">
+                          Mengacak jeda klik, gerakan kursor mouse melengkung alami, dan kecepatan ketik agar tidak terdeteksi bot Cloudflare / DataDome.
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={config.enableHumanStealth ?? true}
+                        onChange={(e) => setConfig({ ...config, enableHumanStealth: e.target.checked })}
+                        className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500 mt-1 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Debug Test Mode */}
+                    <div className="p-4 rounded-2xl border card-subtle-theme border-subtle-theme flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-main-theme">Mode Uji Coba (Debug Dry-Run)</div>
+                        <div className="text-[11px] text-muted-theme mt-1">
+                          Mencari dan membuka lowongan kerja tanpa menekan tombol submit lamaran akhir. Cocok untuk verifikasi selektor form.
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={config.debugTest ?? false}
+                        onChange={(e) => setConfig({ ...config, debugTest: e.target.checked })}
+                        className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500 mt-1 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Mode Kirim Lamaran */}
+                    <div className="p-4 rounded-2xl border card-subtle-theme border-subtle-theme space-y-2">
+                      <label htmlFor="settings-apply-mode" className="block font-semibold text-main-theme">
+                        Mode Pengiriman Lamaran
+                      </label>
+                      <select
+                        id="settings-apply-mode"
+                        value={config.autoApplyMode || 'auto'}
+                        onChange={(e) => setConfig({ ...config, autoApplyMode: e.target.value as 'auto' | 'review' })}
+                        className="w-full input-theme border border-subtle-theme rounded-xl px-3 py-2 text-xs focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none cursor-pointer"
+                      >
+                        <option value="auto">Otomatis Kirim Penuh (Auto-Submit)</option>
+                        <option value="review">Mode Review (Minta Konfirmasi Pengguna)</option>
+                      </select>
+                      <p className="text-[11px] text-muted-theme">
+                        {config.autoApplyMode === 'review'
+                          ? 'Bot akan mengisi semua jawaban dan berhenti di tombol submit menunggu persetujuan Anda.'
+                          : 'Bot otomatis mengirimkan formulir lamaran saat semua isian sudah lengkap.'}
+                      </p>
+                    </div>
+
+                    {/* Concurrency */}
+                    <div className="p-4 rounded-2xl border card-subtle-theme border-subtle-theme space-y-2">
+                      <label htmlFor="settings-concurrency" className="block font-semibold text-main-theme">
+                        Jumlah Tab / Browser Serentak (Concurrency)
+                      </label>
+                      <input
+                        id="settings-concurrency"
+                        type="number"
+                        min={1}
+                        max={5}
+                        value={config.concurrency || 1}
+                        onChange={(e) => setConfig({ ...config, concurrency: Math.max(1, parseInt(e.target.value) || 1) })}
+                        className="w-full input-theme border border-subtle-theme rounded-xl px-3 py-2 text-xs focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none"
+                      />
+                      <p className="text-[11px] text-muted-theme">
+                        Disarankan 1 untuk stabilitas sesi portal loker dan konsumsi RAM yang hemat.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Action Footer */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-subtle-theme">
+                  <div className="text-xs text-muted-theme">
+                    Semua pengaturan tersimpan aman secara lokal di sistem Anda.
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={isSavingConfig}
+                      onClick={() => handleSaveConfig()}
+                      className="px-6 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold flex items-center gap-2 transition shadow-sm disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>{isSavingConfig ? 'Menyimpan Pengaturan...' : 'Simpan Semua Pengaturan'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </main>
       </div>

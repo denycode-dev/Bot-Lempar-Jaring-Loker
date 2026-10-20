@@ -4,8 +4,8 @@
  * company name, job title, and the candidate's core skills/experience.
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getConfig } from './config';
+import { askUniversalAi } from './aiGateway';
 
 const coverLetterCache = new Map<string, string>();
 
@@ -53,51 +53,16 @@ ${jobDescriptionSnippet ? `Potongan Deskripsi Loker: "${jobDescriptionSnippet.sl
 Buatkan surat pengantar singkat yang memikat sekarang:`;
 
   try {
-    // 1. Custom AI Router (OpenRouter/9Router) if configured
-    if (config.customAiApiKey && config.customAiBaseUrl) {
-      const model = config.customAiModel || 'gemini-2.5-flash';
-      const cleanBaseUrl = config.customAiBaseUrl.replace(/\/+$/, '');
-      const endpoint = cleanBaseUrl.endsWith('/chat/completions') ? cleanBaseUrl : `${cleanBaseUrl}/chat/completions`;
+    const letter = await askUniversalAi({
+      systemPrompt: systemInstruction,
+      userPrompt,
+      temperature: 0.7,
+    });
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.customAiApiKey}`
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemInstruction },
-            { role: 'user', content: userPrompt }
-          ],
-          temperature: 0.7,
-          max_tokens: 300
-        }),
-        signal: AbortSignal.timeout(10000)
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const letter = (data.choices?.[0]?.message?.content || '').trim();
-        if (letter) {
-          coverLetterCache.set(cacheKey, letter);
-          return letter;
-        }
-      }
-    }
-
-    // 2. Official Gemini API
-    const geminiKey = config.geminiApiKey || process.env.GEMINI_API_KEY;
-    if (geminiKey && geminiKey !== 'your_gemini_api_key_here') {
-      const genAI = new GoogleGenerativeAI(geminiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-      const response = await model.generateContent(`${systemInstruction}\n\n${userPrompt}`);
-      const letter = (response.response.text() || '').trim();
-      if (letter) {
-        coverLetterCache.set(cacheKey, letter);
-        return letter;
-      }
+    if (letter?.trim()) {
+      const cleanLetter = letter.trim();
+      coverLetterCache.set(cacheKey, cleanLetter);
+      return cleanLetter;
     }
   } catch (e) {
     // Fallback template jika offline atau AI timeout

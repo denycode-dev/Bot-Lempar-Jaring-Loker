@@ -1,7 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { getConfig, saveConfig } from './config';
 
 export interface CVAnalysisResult {
   fullName?: string;

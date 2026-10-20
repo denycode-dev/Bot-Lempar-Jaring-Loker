@@ -28,10 +28,11 @@ export async function startBot(
   try {
     const config = getConfig();
 
-    // Verify AI Gateway configuration (Config UI key or .env)
+    // Verify AI Gateway configuration (Config UI key, aiEndpoints list, or .env)
     const hasAiConfig = Boolean(
       (config.geminiApiKey && config.geminiApiKey.trim()) ||
       (config.customAiApiKey && config.customAiApiKey.trim()) ||
+      (config.aiEndpoints && config.aiEndpoints.some((e) => e.apiKey && e.apiKey.trim())) ||
       (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim() && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here')
     );
 
