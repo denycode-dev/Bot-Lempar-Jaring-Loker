@@ -154,25 +154,6 @@ export async function addAppliedJob(job: { company: string; title: string; platf
   }
 }
 
-export async function isJobAlreadyApplied(jobUrl: string): Promise<boolean> {
-  if (!jobUrl) return false;
-  const targetUrl = cleanJobUrl(jobUrl);
-
-  // Fast path: Check in-memory URL set in 0.001ms
-  const cache = inMemoryAppliedJobs;
-  if (cache) {
-    return cache.urlSet.has(targetUrl);
-  }
-
-  // First time: fetch & cache from Google Sheets
-  const appliedJobs = await getAppliedJobs();
-  const freshCache = inMemoryAppliedJobs as { urlSet: Set<string> } | null;
-  if (freshCache) {
-    return freshCache.urlSet.has(targetUrl);
-  }
-  return appliedJobs.some((job) => cleanJobUrl(job.jobUrl) === targetUrl);
-}
-
 export async function initializeSheet() {
   const config = getConfig();
   const sheets = getSheetsClient();

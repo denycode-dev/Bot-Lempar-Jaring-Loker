@@ -1,5 +1,5 @@
 {
-  "name": "lemparjaring",
+  "name": "autoapply",
   "version": "1.0.0",
   "description": "Bot tebar lamaran kerja otomatis & AI talent scout open-source (Glints, JobStreet, Indeed, LinkedIn)",
   "license": "MIT",
@@ -8,10 +8,20 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "knip": "knip"
   },
   "dependencies": {
+    "@radix-ui/react-checkbox": "^1.4.1",
+    "@radix-ui/react-dialog": "^1.3.1",
+    "@radix-ui/react-progress": "^1.2.1",
+    "@radix-ui/react-scroll-area": "^1.4.0",
+    "@radix-ui/react-select": "^2.4.1",
+    "@radix-ui/react-slot": "^1.5.0",
+    "@radix-ui/react-switch": "^1.4.1",
     "camoufox-js": "^0.13.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "csv-parse": "^7.0.2",
     "csv-stringify": "^6.8.3",
     "googleapis": "^176.0.0",
@@ -21,11 +31,10 @@
     "openai": "^7.39.0",
     "playwright-core": "^1.60.0",
     "puppeteer": "^25.14.0",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "sonner": "^2.0.8",
+    "tailwind-merge": "^3.7.0",
     "unpdf": "^1.9.0"
   },
   "devDependencies": {
@@ -36,6 +45,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
     "javascript-obfuscator": "^5.7.0",
+    "knip": "^6.42.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

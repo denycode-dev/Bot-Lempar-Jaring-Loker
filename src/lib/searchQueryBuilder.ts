@@ -4,13 +4,6 @@
  * for JobStreet, Glints, LinkedIn, and Indeed.
  */
 
-export interface ParsedSearchCriteria {
-  keywords: string[];
-  primaryKeyword: string;
-  booleanKeywords: string;
-  primaryLocation: string;
-  allLocations: string[];
-}
 
 export function parseKeywords(rawKeywords: string = ''): string[] {
   if (!rawKeywords) return [];

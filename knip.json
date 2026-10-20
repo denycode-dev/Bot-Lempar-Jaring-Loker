@@ -1,0 +1,16 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/app/**/{page,layout,loading,error,not-found,route,template,default}.{js,jsx,ts,tsx}",
+    "src/components/ui/*.{ts,tsx}",
+    "extension-standalone/build-obfuscated.js"
+  ],
+  "project": [
+    "src/**/*.{js,ts,jsx,tsx,css}"
+  ],
+  "ignoreDependencies": [
+    "camoufox-js",
+    "playwright-core"
+  ],
+  "ignoreExportsUsedInFile": true
+}

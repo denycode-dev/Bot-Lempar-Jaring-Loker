@@ -51,8 +51,8 @@ export interface TourModule {
 const FULL_SYSTEM_STEPS: TourStep[] = [
   {
     targetId: 'tour-welcome',
-    title: 'Selamat Datang di lemparjaring',
-    content: 'Platform lempar jaring kerja & talent scout cerdas ke LinkedIn, Glints, JobStreet, dan Indeed dengan integrasi AI, anti-bot stealth, dan database lokal.',
+    title: 'Selamat Datang di AutoApply',
+    content: 'Platform otomatisasi lamaran kerja & talent scout cerdas ke LinkedIn, Glints, JobStreet, dan Indeed dengan integrasi AI, anti-bot stealth, dan database lokal.',
     icon: Compass,
     preferredPlacement: 'center',
   },
@@ -130,6 +130,7 @@ const FULL_SYSTEM_STEPS: TourStep[] = [
     title: '9. Pemilihan Mode: Simulasi vs LIVE',
     content: 'Gunakan Mode Simulasi (Dry-Run) untuk uji coba alur tanpa mengirim lamaran asli ke HRD, atau alihkan ke Mode LIVE untuk pengiriman resmi.',
     icon: Layers,
+    tab: 'wizard',
     preferredPlacement: 'bottom',
   },
   {
@@ -149,7 +150,7 @@ export const TOUR_MODULES: TourModule[] = [
     description: 'Panduan lengkap mencakup seluruh alur kerja dari persiapan dokumen CV hingga eksekusi bot (10 langkah).',
     badge: 'Rekomendasi Awal',
     icon: Compass,
-    color: 'from-orange-500/20 to-amber-500/10 border-orange-500/30 text-orange-500',
+    color: 'from-brand/20 to-sky-500/10 border-brand/30 text-brand',
     steps: FULL_SYSTEM_STEPS,
   },
   {
@@ -290,7 +291,7 @@ export function OnboardingTour({
   useEffect(() => {
     setIsMounted(true);
     try {
-      const hasSeen = localStorage.getItem('cv_blaster_onboarding_completed');
+      const hasSeen = localStorage.getItem('autoapply_onboarding_completed') || localStorage.getItem('cv_blaster_onboarding_completed');
       if (!hasSeen) {
         const timer = setTimeout(() => {
           setIsHubOpen(true);
@@ -427,6 +428,7 @@ export function OnboardingTour({
 
   const handleComplete = () => {
     try {
+      localStorage.setItem('autoapply_onboarding_completed', 'true');
       localStorage.setItem('cv_blaster_onboarding_completed', 'true');
     } catch {}
     setIsTourActive(false);
@@ -446,10 +448,10 @@ export function OnboardingTour({
       <button
         type="button"
         onClick={() => setIsHubOpen(true)}
-        className="px-3 py-1.5 rounded-xl border border-subtle-theme card-theme text-muted-theme hover:text-orange-500 hover:border-orange-500/40 transition flex items-center gap-1.5 text-xs shadow-sm cursor-pointer"
+        className="px-3 py-1.5 rounded-md border border-border bg-card text-muted-foreground hover:text-brand hover:border-brand/40 transition flex items-center gap-1.5 text-xs shadow-xs cursor-pointer"
         title="Pusat Panduan & Tutorial Modul"
       >
-        <BookOpen className="w-3.5 h-3.5 text-orange-500" />
+        <BookOpen className="w-3.5 h-3.5 text-brand" />
         <span className="font-medium">Panduan</span>
       </button>
 
@@ -459,22 +461,22 @@ export function OnboardingTour({
           {/* 1. MODULAR GUIDED HUB (TOPIC SELECTOR MODAL) */}
           {isHubOpen && (
             <div className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-sm overflow-y-auto p-3 sm:p-4 md:p-6 flex items-start sm:items-center justify-center">
-              <div className="my-auto card-theme border rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-7 max-w-3xl w-full shadow-2xl flex flex-col max-h-[88vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative z-10">
+              <div className="my-auto bg-card border border-border rounded-xl p-4 sm:p-6 md:p-7 max-w-3xl w-full shadow-2xl flex flex-col max-h-[88vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative z-10">
                 {/* Header */}
-                <div className="flex items-center justify-between border-b border-subtle-theme pb-3.5 sm:pb-4 shrink-0">
+                <div className="flex items-center justify-between border-b border-border pb-3.5 sm:pb-4 shrink-0">
                   <div className="flex items-center gap-2.5 sm:gap-3">
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-orange-500 shrink-0">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0">
                       <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div>
-                      <h2 className="text-sm sm:text-base font-bold text-main-theme">Pusat Panduan &amp; Tutorial lemparjaring</h2>
-                      <p className="text-[11px] sm:text-xs text-muted-theme">Pilih modul spesifik yang ingin dipelajari atau jalankan tur kilat interaktif.</p>
+                      <h2 className="text-sm sm:text-base font-semibold text-foreground">Pusat Panduan &amp; Tutorial AutoApply</h2>
+                      <p className="text-[11px] sm:text-xs text-muted-foreground">Pilih modul spesifik yang ingin dipelajari atau jalankan tur kilat interaktif.</p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setIsHubOpen(false)}
-                    className="p-1.5 sm:p-2 rounded-xl hover:card-subtle-theme text-muted-theme hover:text-main-theme transition"
+                    className="p-1.5 sm:p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition"
                     aria-label="Tutup Panduan"
                   >
                     <X className="w-5 h-5" />
@@ -486,22 +488,22 @@ export function OnboardingTour({
                   {/* Featured: Full System Walkthrough */}
                   <div
                     onClick={() => handleStartModuleTour(TOUR_MODULES[0])}
-                    className="p-5 rounded-2xl bg-gradient-to-r from-orange-500/15 via-amber-500/10 to-transparent border border-orange-500/40 hover:border-orange-500 cursor-pointer transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
+                    className="p-5 rounded-xl bg-gradient-to-r from-brand/10 via-blue-500/5 to-transparent border border-brand/30 hover:border-brand cursor-pointer transition-all shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
                   >
                     <div className="flex items-start gap-3.5">
-                      <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+                      <div className="w-10 h-10 rounded-lg bg-brand text-white flex items-center justify-center shrink-0 shadow-xs">
                         <Compass className="w-5 h-5" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-bold text-main-theme group-hover:text-orange-500 transition">
+                          <h3 className="text-sm font-semibold text-foreground group-hover:text-brand transition">
                             Tur Kilat Seluruh Fitur (10 Langkah)
                           </h3>
-                          <span className="text-[10px] font-semibold bg-orange-500/20 text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-full border border-orange-500/30">
+                          <span className="text-[10px] font-medium bg-brand/15 text-brand px-2 py-0.5 rounded-full border border-brand/25">
                             Disarankan untuk Pemula
                           </span>
                         </div>
-                        <p className="text-xs text-muted-theme mt-1 leading-relaxed">
+                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                           Jelajahi seluruh alur mulai dari unggah CV, pengaturan kriteria, manajemen multi-akun, bank soal HRD, hingga peluncuran bot otomatis.
                         </p>
                       </div>
@@ -509,7 +511,7 @@ export function OnboardingTour({
 
                     <button
                       type="button"
-                      className="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shrink-0 shadow-sm transition"
+                      className="px-4 py-2 rounded-md bg-brand hover:bg-brand/90 text-white text-xs font-medium flex items-center justify-center gap-1.5 shrink-0 shadow-xs transition"
                     >
                       <span>Mulai Tur</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -518,7 +520,7 @@ export function OnboardingTour({
 
                   {/* Grid of Modular Guides */}
                   <div>
-                    <h3 className="text-xs font-bold text-muted-theme uppercase tracking-wider mb-3">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                       Panduan Berdasarkan Modul &amp; Halaman
                     </h3>
 
@@ -529,26 +531,26 @@ export function OnboardingTour({
                           <div
                             key={module.id}
                             onClick={() => handleStartModuleTour(module)}
-                            className="p-4 rounded-2xl border border-subtle-theme card-theme hover:border-orange-500/50 cursor-pointer transition-all flex flex-col justify-between space-y-3 group"
+                            className="p-4 rounded-xl border border-border bg-card hover:border-brand/40 cursor-pointer transition-all flex flex-col justify-between space-y-3 group"
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex items-center gap-2.5">
-                                <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${module.color} flex items-center justify-center border shrink-0`}>
+                                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${module.color} flex items-center justify-center border shrink-0`}>
                                   <ModIcon className="w-4 h-4" />
                                 </div>
                                 <div>
-                                  <h4 className="text-xs font-semibold text-main-theme group-hover:text-orange-500 transition">
+                                  <h4 className="text-xs font-semibold text-foreground group-hover:text-brand transition">
                                     {module.title}
                                   </h4>
-                                  <span className="text-[10px] text-muted-theme font-medium">
+                                  <span className="text-[10px] text-muted-foreground font-medium">
                                     {module.badge} ({module.steps.length} langkah)
                                   </span>
                                 </div>
                               </div>
-                              <ChevronRight className="w-4 h-4 text-muted-theme group-hover:text-orange-500 transition shrink-0" />
+                              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-brand transition shrink-0" />
                             </div>
 
-                            <p className="text-[11px] text-muted-theme leading-relaxed">
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
                               {module.description}
                             </p>
                           </div>
@@ -559,14 +561,14 @@ export function OnboardingTour({
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between pt-4 border-t border-subtle-theme shrink-0 text-xs text-muted-theme">
+                <div className="flex items-center justify-between pt-4 border-t border-border shrink-0 text-xs text-muted-foreground">
                   <span className="text-[11px]">
                     Panduan dapat dibuka kembali kapan saja melalui tombol <strong>Panduan</strong> di bagian atas.
                   </span>
                   <button
                     type="button"
                     onClick={() => setIsHubOpen(false)}
-                    className="px-4 py-2 rounded-xl card-subtle-theme border border-subtle-theme text-muted-theme hover:text-main-theme font-medium text-xs transition"
+                    className="px-4 py-2 rounded-md bg-muted/60 border border-border text-muted-foreground hover:text-foreground font-medium text-xs transition"
                   >
                     Tutup
                   </button>
@@ -613,7 +615,7 @@ export function OnboardingTour({
               {/* Glowing Target Outline */}
               {targetRect && (
                 <div
-                  className="fixed pointer-events-none z-[10000] rounded-2xl border-2 border-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.4)] transition-all duration-200"
+                  className="fixed pointer-events-none z-[10000] rounded-xl border-2 border-brand shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all duration-200"
                   style={{
                     top: targetRect.top - pad,
                     left: targetRect.left - pad,
@@ -625,13 +627,13 @@ export function OnboardingTour({
 
               {/* Interactive Popover Card or Compact Pill */}
               {isMinimized ? (
-                <div className="fixed bottom-6 right-6 z-[10000] p-2.5 px-4 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-slate-700 text-slate-100 shadow-2xl flex items-center gap-3 animate-in fade-in zoom-in-95 duration-150">
+                <div className="fixed bottom-6 right-6 z-[10000] p-2.5 px-4 rounded-xl bg-zinc-900/95 backdrop-blur-md border border-zinc-800 text-zinc-100 shadow-2xl flex items-center gap-3 animate-in fade-in zoom-in-95 duration-150">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-orange-500/20 text-orange-400 flex items-center justify-center shrink-0">
+                    <div className="w-6 h-6 rounded-md bg-brand/20 text-brand flex items-center justify-center shrink-0">
                       <StepIcon className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-orange-400 font-semibold uppercase tracking-wider">
+                      <span className="text-[10px] text-brand font-medium uppercase tracking-wider">
                         Langkah {currentStepIndex + 1}/{activeSteps.length}
                       </span>
                       <span className="text-xs font-semibold text-white truncate max-w-[200px]">
@@ -639,11 +641,11 @@ export function OnboardingTour({
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 pl-2 border-l border-slate-800">
+                  <div className="flex items-center gap-1.5 pl-2 border-l border-zinc-800">
                     <button
                       type="button"
                       onClick={() => setIsMinimized(false)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                      className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
                       title="Perbesar Kartu Panduan"
                     >
                       <Maximize2 className="w-3.5 h-3.5" />
@@ -651,14 +653,14 @@ export function OnboardingTour({
                     <button
                       type="button"
                       onClick={handleNext}
-                      className="px-2.5 py-1 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-medium transition"
+                      className="px-2.5 py-1 rounded-md bg-brand hover:bg-brand/90 text-white text-xs font-medium transition"
                     >
                       {currentStepIndex === activeSteps.length - 1 ? 'Selesai' : 'Lanjut'}
                     </button>
                     <button
                       type="button"
                       onClick={handleComplete}
-                      className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+                      className="text-zinc-400 hover:text-white p-1 rounded-md hover:bg-zinc-800 transition"
                       title="Tutup Panduan"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -667,22 +669,22 @@ export function OnboardingTour({
                 </div>
               ) : (
                 <div
-                  className={`fixed z-[10000] w-full max-w-[calc(100vw-2rem)] sm:max-w-[380px] p-4 sm:p-5 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-slate-700 text-slate-100 shadow-2xl transition-all duration-200 ${
+                  className={`fixed z-[10000] w-full max-w-[calc(100vw-2rem)] sm:max-w-[380px] p-4 sm:p-5 rounded-xl bg-zinc-900/95 backdrop-blur-md border border-zinc-800 text-zinc-100 shadow-2xl transition-all duration-200 ${
                     !popoverPos ? 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2' : ''
                   }`}
                   style={popoverPos ? { top: `${popoverPos.top}px`, left: `${popoverPos.left}px` } : {}}
                 >
                   {/* Top Bar */}
-                  <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2.5">
+                  <div className="flex items-center justify-between mb-3 border-b border-zinc-800 pb-2.5">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0">
+                      <div className="w-7 h-7 rounded-md bg-brand/20 border border-brand/30 flex items-center justify-center text-brand shrink-0">
                         <StepIcon className="w-4 h-4" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[10px] text-orange-400 font-semibold uppercase tracking-wider">
+                        <span className="text-[10px] text-brand font-medium uppercase tracking-wider">
                           {activeModule.title}
                         </span>
-                        <span className="text-xs text-slate-400 font-medium">
+                        <span className="text-xs text-zinc-400 font-medium">
                           Langkah {currentStepIndex + 1} dari {activeSteps.length}
                         </span>
                       </div>
@@ -692,7 +694,7 @@ export function OnboardingTour({
                       <button
                         type="button"
                         onClick={() => setIsMinimized(true)}
-                        className="text-slate-400 hover:text-white p-1 rounded-lg text-[10px] border border-slate-700 hover:bg-slate-800 transition"
+                        className="text-zinc-400 hover:text-white p-1 rounded-md text-[10px] border border-zinc-800 hover:bg-zinc-800 transition"
                         title="Kecilkan Panduan agar tidak menutupi layar"
                       >
                         <Minimize2 className="w-3.5 h-3.5" />
@@ -700,7 +702,7 @@ export function OnboardingTour({
                       <button
                         type="button"
                         onClick={handleBackToHub}
-                        className="text-slate-400 hover:text-white p-1 rounded-lg text-[10px] border border-slate-700 hover:bg-slate-800 transition"
+                        className="text-zinc-400 hover:text-white p-1 rounded-md text-[10px] border border-zinc-800 hover:bg-zinc-800 transition"
                         title="Kembali ke Menu Pilihan Panduan"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
@@ -708,10 +710,10 @@ export function OnboardingTour({
                       <button
                         type="button"
                         onClick={handleComplete}
-                        className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+                        className="text-zinc-400 hover:text-white p-1 rounded-md hover:bg-zinc-800 transition"
                         title="Tutup Panduan"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -720,12 +722,12 @@ export function OnboardingTour({
                   <h3 className="text-sm font-semibold text-white mb-2 leading-snug">
                     {currentStepData.title}
                   </h3>
-                  <p className="text-xs text-slate-300 leading-relaxed mb-5">
+                  <p className="text-xs text-zinc-300 leading-relaxed mb-5">
                     {currentStepData.content}
                   </p>
 
                   {/* Bottom Actions */}
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+                  <div className="flex items-center justify-between pt-3 border-t border-zinc-800">
                     {/* Progress Dots */}
                     <div className="flex items-center gap-1.5">
                       {activeSteps.map((_, idx) => (
@@ -735,8 +737,8 @@ export function OnboardingTour({
                           onClick={() => setCurrentStepIndex(idx)}
                           className={`h-1.5 rounded-full transition-all ${
                             idx === currentStepIndex
-                              ? 'w-5 bg-orange-500'
-                              : 'w-1.5 bg-slate-700 hover:bg-slate-500'
+                              ? 'w-5 bg-brand'
+                              : 'w-1.5 bg-zinc-700 hover:bg-zinc-500'
                           }`}
                         />
                       ))}
@@ -748,7 +750,7 @@ export function OnboardingTour({
                         <button
                           type="button"
                           onClick={handlePrev}
-                          className="px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 text-xs font-medium text-slate-300 transition flex items-center gap-1 cursor-pointer"
+                          className="px-3 py-1.5 rounded-md border border-zinc-800 hover:bg-zinc-800 text-xs font-medium text-zinc-300 transition flex items-center gap-1 cursor-pointer"
                         >
                           <ChevronLeft className="w-3.5 h-3.5" />
                           <span>Sebelumnya</span>
@@ -758,7 +760,7 @@ export function OnboardingTour({
                       <button
                         type="button"
                         onClick={handleNext}
-                        className="px-3.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-medium transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                        className="px-3.5 py-1.5 rounded-md bg-brand hover:bg-brand/90 text-white text-xs font-medium transition flex items-center gap-1.5 shadow-xs cursor-pointer"
                       >
                         {currentStepIndex === activeSteps.length - 1 ? (
                           <>

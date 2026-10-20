@@ -1,8 +1,12 @@
 <div align="center">
 
-<img src="logo.png" alt="Lempar Jaring Logo" width="420" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/brand/logo-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="public/brand/logo-light.svg">
+  <img alt="AutoApply Logo" src="public/brand/logo-light.svg" width="380" />
+</picture>
 
-# Lempar Jaring (CV Blaster)
+# AutoApply
 
 ### Autonomous AI-Powered Multi-Platform Job Application Engine & Reverse Talent Scout
 
@@ -21,7 +25,7 @@
 
 <p align="center">
   <b>Tired of sending hundreds of job applications manually and filling repetitive screening questionnaires?</b><br />
-  <b>Lempar Jaring</b> is a production-grade, open-source automation suite that searches, filters, dynamically customizes cover letters, auto-solves HR screening questionnaires using high-speed heuristics and LLMs, and safely applies on your behalf while you prepare for interviews.
+  <b>AutoApply</b> is a production-grade, open-source automation suite that searches, filters, dynamically customizes cover letters, auto-solves HR screening questionnaires using high-speed heuristics and LLMs, and safely applies on your behalf while you prepare for interviews.
 </p>
 
 </div>

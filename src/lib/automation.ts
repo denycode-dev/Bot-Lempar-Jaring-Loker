@@ -22,7 +22,7 @@ export async function startBot(
 
   global.isBotRunning = true;
   const platformLabel = targetPlatform !== 'all' ? targetPlatform.toUpperCase() : 'SEMUA PLATFORM';
-  onLog(`🚀 Starting CV Blaster Engine in ${mode.toUpperCase()} mode [Target: ${platformLabel}]...`);
+  onLog(`🚀 Starting AutoApply Engine in ${mode.toUpperCase()} mode [Target: ${platformLabel}]...`);
 
   let browser: any = null;
   try {
@@ -292,7 +292,7 @@ export async function startBot(
     onLog(`⏩ Total Dilewati (Sudah Dilamar): ${totalAlreadyApplied} pekerjaan`);
     onLog(`❌ Total Error: ${totalErrors} pekerjaan`);
     onLog('--------------------------------------------------');
-    onLog('🏁 Sesi CV Blaster Selesai!');
+    onLog('🏁 Sesi AutoApply Selesai!');
   } catch (error: any) {
     onLog(`🚨 Fatal Bot Error: ${error.message || error}`);
   } finally {

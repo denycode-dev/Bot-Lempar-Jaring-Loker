@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoApply — Logo Variants</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #FAFAFA; color: #09090B; padding: 2.5rem 2rem 4rem; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; }
+  .sub { color: #71717A; font-size: .9rem; margin: .35rem 0 2rem; }
+  h2 { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #71717A; margin: 2.25rem 0 .75rem; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .panel { border: 1px solid #E4E4E7; border-radius: 14px; padding: 2rem; display: flex; align-items: center; justify-content: center; min-height: 200px; position: relative; }
+  .panel.light { background: #fff; }
+  .panel.dark { background: #09090B; border-color: #27272A; }
+  .panel img.logo { max-width: 100%; max-height: 150px; }
+  .tag { position: absolute; top: .65rem; left: .9rem; font-size: .7rem; color: #A1A1AA; }
+  .icons { display: flex; gap: 1.25rem; align-items: flex-end; flex-wrap: wrap; }
+  .icons figure { display: flex; flex-direction: column; align-items: center; gap: .5rem; font-size: .72rem; color: #71717A; }
+  .panel.dark .icons figure { color: #A1A1AA; }
+  .nav { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: .25rem .5rem; }
+  .nav img { height: 34px; }
+  .nav .links { display: flex; gap: 1.25rem; align-items: center; font-size: .85rem; }
+  .light .links { color: #52525B; } .dark .links { color: #A1A1AA; }
+  .btn { padding: .4rem .85rem; border-radius: 8px; font-size: .8rem; font-weight: 500; }
+  .light .btn { background: #18181B; color: #FAFAFA; } .dark .btn { background: #FAFAFA; color: #18181B; }
+  .tabs { display: flex; flex-direction: column; gap: .75rem; width: 100%; }
+  .tab { display: flex; align-items: center; gap: .55rem; padding: .5rem .85rem; border-radius: 10px 10px 0 0; font-size: .78rem; width: 260px; }
+  .tab.l { background: #F4F4F5; color: #27272A; } .tab.d { background: #27272A; color: #E4E4E7; }
+  .tab img { width: 16px; height: 16px; }
+  .strip { display: flex; gap: 1.5rem; align-items: flex-end; }
+  .strip figure { display: flex; flex-direction: column; align-items: center; gap: .4rem; font-size: .7rem; color: #71717A; }
+  .strip img.px { image-rendering: pixelated; }
+  .files { margin-top: 2rem; font-size: .8rem; color: #52525B; line-height: 1.7; border: 1px solid #E4E4E7; background: #fff; border-radius: 14px; padding: 1.25rem 1.5rem; }
+  code { background: #F4F4F5; padding: .05rem .35rem; border-radius: 5px; font-size: .78rem; }
+  @media (max-width: 760px) { .row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AutoApply — Logo Variants</h1>
+  <p class="sub">Konsep 4 (loop + centang) · palet shadcn zinc · aksen biru (light <code>#2563EB</code>, dark <code>#60A5FA</code>)</p>
+
+  <h2>Logo utama</h2>
+  <div class="row">
+    <div class="panel light"><span class="tag">Light</span><img class="logo" src="export/logo-light.svg" alt="logo light"></div>
+    <div class="panel dark"><span class="tag">Dark</span><img class="logo" src="export/logo-dark.svg" alt="logo dark"></div>
+  </div>
+
+  <h2>Header / Navbar</h2>
+  <div class="row">
+    <div class="panel light"><div class="nav"><img src="export/header-light.svg" alt="header light"><div class="links"><span>Fitur</span><span>Harga</span><span class="btn">Masuk</span></div></div></div>
+    <div class="panel dark"><div class="nav"><img src="export/header-dark.svg" alt="header dark"><div class="links"><span>Fitur</span><span>Harga</span><span class="btn">Masuk</span></div></div></div>
+  </div>
+
+  <h2>Ikon (avatar, sidebar, sosial media)</h2>
+  <div class="row">
+    <div class="panel light"><div class="icons">
+      <figure><img src="export/icon-light.svg" width="112" height="112" alt=""><span>icon-light</span></figure>
+      <figure><img src="export/icon-light.svg" width="56" height="56" alt=""><span>56px</span></figure>
+      <figure><img src="export/icon-light.svg" width="32" height="32" alt=""><span>32px</span></figure>
+    </div></div>
+    <div class="panel dark"><div class="icons">
+      <figure><img src="export/icon-dark.svg" width="112" height="112" alt=""><span>icon-dark</span></figure>
+      <figure><img src="export/icon-dark.svg" width="56" height="56" alt=""><span>56px</span></figure>
+      <figure><img src="export/icon-dark.svg" width="32" height="32" alt=""><span>32px</span></figure>
+    </div></div>
+  </div>
+
+  <h2>Favicon &amp; App icon (biru solid, aman di tab terang maupun gelap)</h2>
+  <div class="row">
+    <div class="panel light"><div class="tabs">
+      <div class="tab l"><img src="export/favicon.svg" alt="">AutoApply — Lamar kerja otomatis</div>
+      <div class="strip">
+        <figure><img src="export/favicon.svg" width="64" height="64" alt=""><span>64</span></figure>
+        <figure><img class="px" src="export/favicon-32.png" width="32" height="32" alt=""><span>32</span></figure>
+        <figure><img class="px" src="export/favicon-16.png" width="16" height="16" alt=""><span>16</span></figure>
+        <figure><img src="export/app-icon.svg" width="64" height="64" style="border-radius:14px" alt=""><span>app icon</span></figure>
+      </div>
+    </div></div>
+    <div class="panel dark"><div class="tabs">
+      <div class="tab d"><img src="export/favicon.svg" alt="">AutoApply — Lamar kerja otomatis</div>
+      <div class="strip">
+        <figure style="color:#A1A1AA"><img src="export/favicon.svg" width="64" height="64" alt=""><span>64</span></figure>
+        <figure style="color:#A1A1AA"><img class="px" src="export/favicon-32.png" width="32" height="32" alt=""><span>32</span></figure>
+        <figure style="color:#A1A1AA"><img class="px" src="export/favicon-16.png" width="16" height="16" alt=""><span>16</span></figure>
+        <figure style="color:#A1A1AA"><img src="export/app-icon.svg" width="64" height="64" style="border-radius:14px" alt=""><span>app icon</span></figure>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="files">
+    <strong>Cara pakai</strong><br>
+    Light mode → <code>logo-light.svg</code>, <code>header-light.svg</code>, <code>icon-light.svg</code> · Dark mode → versi <code>-dark</code>.<br>
+    Favicon → <code>favicon.svg</code> + <code>favicon.ico</code> + <code>apple-touch-icon.png</code> · PWA → <code>pwa-192.png</code>, <code>pwa-512.png</code>.<br>
+    Semua teks sudah berupa path (font Inter), jadi tampil sama di perangkat mana pun.
+  </div>
+</div>
+</body>
+</html>

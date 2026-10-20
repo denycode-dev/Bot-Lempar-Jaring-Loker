@@ -11,7 +11,7 @@ export interface AiEndpointConfig {
   isActive?: boolean;
 }
 
-export interface BrowserProfileAccount {
+interface BrowserProfileAccount {
   id: string;
   name: string; // Misal: "Akun Utama Yoga", "Akun Cadangan 2"
   profileFolder: string; // automation-profile, automation-profile-2
