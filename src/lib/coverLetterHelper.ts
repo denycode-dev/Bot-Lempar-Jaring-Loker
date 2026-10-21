@@ -44,7 +44,7 @@ Hormat saya,
   const emailMatch = (config.cvExtractedText || '').match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
   const cleanEmail = emailMatch ? emailMatch[0] : '';
 
-  let letter = template
+  const letter = template
     .replace(/\[Nama Anda\]/g, cleanFullName)
     .replace(/\[Kota, Wilayah\]/g, cleanDomicile)
     .replace(/\[Nomor Telepon\]/g, cleanPhone)

@@ -1,5 +1,9 @@
-import { getConfig, AiEndpointConfig } from './config';
 import { executeOpenAiCompletion, GEMINI_OPENAI_BASE_URL } from './ai/openAiClient';
+import { db } from '../db';
+import { aiProviderCredentials } from '../db/schema';
+import { eq, and, asc } from 'drizzle-orm';
+import { decryptSecret, validateSafeEndpointUrl } from './security/encryption';
+import { getConfig } from './config';
 
 export interface AiCompletionOptions {
   systemPrompt?: string;
@@ -9,77 +13,62 @@ export interface AiCompletionOptions {
 }
 
 /**
- * Universal AI Completion Function with Multi-Provider Chaining & Automatic Fallback
- * Powered by the official OpenAI SDK supporting OpenAI-compatible APIs & Gemini:
- * 1. Checks active endpoint from `aiEndpoints` list
- * 2. Tries remaining configured endpoints in sequence
- * 3. Falls back to legacy config fields
- * 4. Falls back to .env GEMINI_API_KEY
+ * Universal AI Completion Function with Multi-Provider Chaining & Automatic Fallback.
+ * Prioritizes encrypted PostgreSQL database credentials, followed by config fallback and .env.
  */
 export async function askUniversalAi(options: AiCompletionOptions): Promise<string> {
-  const config = getConfig();
   const errors: string[] = [];
 
-  // Build execution queue from aiEndpoints list
-  const endpoints: AiEndpointConfig[] = Array.isArray(config.aiEndpoints) && config.aiEndpoints.length > 0
-    ? config.aiEndpoints
-    : [
-        {
-          id: 'ep-gemini',
-          name: 'Google Gemini',
-          type: 'gemini',
-          baseUrl: '',
-          apiKey: config.geminiApiKey || '',
-          model: 'gemini-2.5-flash',
-          isActive: config.aiProvider !== 'custom_router',
-        },
-        {
-          id: 'ep-custom',
-          name: 'Custom Router',
-          type: 'openai_compatible',
-          baseUrl: config.customAiBaseUrl || 'https://api.9router.com/v1',
-          apiKey: config.customAiApiKey || '',
-          model: config.customAiModel || 'google/gemini-2.5-flash',
-          isActive: config.aiProvider === 'custom_router',
-        },
-      ];
+  // 1. First Priority: PostgreSQL ai_provider_credentials (AES-256-GCM protected)
+  try {
+    const dbCredentials = await db.query.aiProviderCredentials.findMany({
+      where: and(
+        eq(aiProviderCredentials.userId, 'default-user'),
+        eq(aiProviderCredentials.isEnabled, true)
+      ),
+      orderBy: [asc(aiProviderCredentials.priority)],
+    });
 
-  // Prioritize active endpoint first, followed by other configured endpoints
-  const activeId = config.activeAiEndpointId;
-  const sorted = [...endpoints].sort((a, b) => {
-    if (a.id === activeId || a.isActive) return -1;
-    if (b.id === activeId || b.isActive) return 1;
-    return 0;
-  });
+    for (const cred of dbCredentials) {
+      try {
+        const apiKey = decryptSecret(cred.apiKeyEncrypted, cred.iv, cred.authTag);
+        if (!apiKey) continue;
 
-  for (const ep of sorted) {
-    if (!ep.apiKey?.trim()) continue;
+        const isGemini = cred.provider.toLowerCase().includes('gemini');
+        const defaultBaseUrl = isGemini ? GEMINI_OPENAI_BASE_URL : 'https://api.9router.com/v1';
+        const baseUrl = cred.baseUrl || defaultBaseUrl;
 
-    try {
-      const isGemini = ep.type === 'gemini';
-      const baseUrl = isGemini
-        ? (ep.baseUrl || GEMINI_OPENAI_BASE_URL)
-        : (ep.baseUrl || 'https://api.9router.com/v1');
-      const model = ep.model || (isGemini ? 'gemini-2.5-flash' : 'google/gemini-2.5-flash');
+        // SSRF Check
+        const ssrfCheck = validateSafeEndpointUrl(baseUrl);
+        if (!ssrfCheck.isValid) {
+          console.warn(`SSRF Blocked endpoint ${baseUrl}: ${ssrfCheck.error}`);
+          continue;
+        }
 
-      return await executeOpenAiCompletion({
-        apiKey: ep.apiKey.trim(),
-        baseUrl,
-        model,
-        systemPrompt: options.systemPrompt,
-        userPrompt: options.userPrompt,
-        temperature: options.temperature,
-        jsonMode: options.jsonMode,
-        timeoutMs: 25000,
-      });
-    } catch (err: any) {
-      const msg = `Provider [${ep.name} (${ep.model})]: ${err?.message || err}`;
-      console.warn(`AI Gateway failover -> ${msg}`);
-      errors.push(msg);
+        const model = cred.modelName || (isGemini ? 'gemini-2.5-flash' : 'google/gemini-2.5-flash');
+
+        return await executeOpenAiCompletion({
+          apiKey,
+          baseUrl,
+          model,
+          systemPrompt: options.systemPrompt,
+          userPrompt: options.userPrompt,
+          temperature: options.temperature,
+          jsonMode: options.jsonMode,
+          timeoutMs: 25000,
+        });
+      } catch (err: any) {
+        const msg = `DB Provider [${cred.provider} (${cred.modelName})]: ${err?.message || err}`;
+        console.warn(`AI Gateway failover -> ${msg}`);
+        errors.push(msg);
+      }
     }
+  } catch (dbErr: any) {
+    console.warn('Could not read AI credentials from DB, falling back to legacy config:', dbErr?.message);
   }
 
-  // Fallback to legacy fields if not covered
+  // 2. Second Priority: Legacy config.json fields (during migration)
+  const config = getConfig();
   if (config.geminiApiKey?.trim()) {
     try {
       return await executeOpenAiCompletion({
@@ -114,14 +103,15 @@ export async function askUniversalAi(options: AiCompletionOptions): Promise<stri
     }
   }
 
-  // Final Fallback: .env file
-  const envKey = process.env.GEMINI_API_KEY?.trim();
+  // 3. Final Fallback: .env file
+  const envKey = process.env.GEMINI_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim();
   if (envKey && envKey !== 'your_gemini_api_key_here') {
     try {
+      const isGemini = !process.env.OPENAI_API_KEY;
       return await executeOpenAiCompletion({
         apiKey: envKey,
-        baseUrl: GEMINI_OPENAI_BASE_URL,
-        model: 'gemini-2.5-flash',
+        baseUrl: isGemini ? GEMINI_OPENAI_BASE_URL : (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'),
+        model: isGemini ? 'gemini-2.5-flash' : 'gpt-4o-mini',
         systemPrompt: options.systemPrompt,
         userPrompt: options.userPrompt,
         temperature: options.temperature,
@@ -129,7 +119,7 @@ export async function askUniversalAi(options: AiCompletionOptions): Promise<stri
         timeoutMs: 25000,
       });
     } catch (e: any) {
-      errors.push(`Gemini .env: ${e?.message || e}`);
+      errors.push(`Env AI Key: ${e?.message || e}`);
     }
   }
 
@@ -137,15 +127,26 @@ export async function askUniversalAi(options: AiCompletionOptions): Promise<stri
 }
 
 /**
- * Test a specific endpoint or active endpoint using the unified OpenAI client
+ * Test a specific endpoint or active endpoint
  */
-export async function testAiConnection(specificEndpoint?: Partial<AiEndpointConfig>): Promise<{ success: boolean; message: string; reply?: string }> {
+export async function testAiConnection(specificEndpoint?: {
+  apiKey?: string;
+  type?: 'gemini' | 'openai_compatible';
+  baseUrl?: string;
+  model?: string;
+}): Promise<{ success: boolean; message: string; reply?: string }> {
   try {
     if (specificEndpoint && specificEndpoint.apiKey) {
       const isGemini = specificEndpoint.type === 'gemini';
       const baseUrl = isGemini
         ? (specificEndpoint.baseUrl || GEMINI_OPENAI_BASE_URL)
         : (specificEndpoint.baseUrl || 'https://api.9router.com/v1');
+
+      const ssrfCheck = validateSafeEndpointUrl(baseUrl);
+      if (!ssrfCheck.isValid) {
+        return { success: false, message: ssrfCheck.error || 'Endpoint tidak aman (SSRF Protection).' };
+      }
+
       const model = specificEndpoint.model || (isGemini ? 'gemini-2.5-flash' : 'google/gemini-2.5-flash');
       const testPrompt = isGemini
         ? 'Katakan "Koneksi Gemini Sukses!" dalam 1 kalimat pendek.'

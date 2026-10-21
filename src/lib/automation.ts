@@ -1,4 +1,3 @@
-import path from 'path';
 import { getConfig } from './config';
 import { runGlintsBot } from './bots/glints';
 import { runJobstreetBot } from './bots/jobstreet';
@@ -25,8 +24,31 @@ export async function startBot(
   onLog(`🚀 Starting AutoApply Engine in ${mode.toUpperCase()} mode [Target: ${platformLabel}]...`);
 
   let browser: any = null;
+  let botRunId: string | null = null;
   try {
     const config = getConfig();
+
+    try {
+      const { db } = require('../db');
+      const { botRuns } = require('../db/schema');
+      const [run] = await db
+        .insert(botRuns)
+        .values({
+          userId: 'default-user',
+          portal: targetPlatform !== 'all' ? targetPlatform : 'all_platforms',
+          startedAt: new Date(),
+          status: 'running',
+          searchCriteriaSnapshot: {
+            keywords: config.searchKeywords,
+            location: config.location,
+            mode,
+          },
+        })
+        .returning({ id: botRuns.id });
+      botRunId = run?.id || null;
+    } catch (e) {
+      console.warn('Could not initialize bot_runs record:', e);
+    }
 
     // Verify AI Gateway configuration (Config UI key, aiEndpoints list, or .env)
     const hasAiConfig = Boolean(
@@ -122,7 +144,6 @@ export async function startBot(
 
     const { applyStealthToPage } = require('./stealthHelper');
 
-    const initialPages = await browser.pages();
     let initialPageUsed = false;
 
     const getOrNewPage = async () => {
@@ -293,8 +314,43 @@ export async function startBot(
     onLog(`❌ Total Error: ${totalErrors} pekerjaan`);
     onLog('--------------------------------------------------');
     onLog('🏁 Sesi AutoApply Selesai!');
+
+    if (botRunId) {
+      try {
+        const { db } = require('../db');
+        const { botRuns } = require('../db/schema');
+        const { eq } = require('drizzle-orm');
+        await db
+          .update(botRuns)
+          .set({
+            finishedAt: new Date(),
+            status: totalErrors > 0 && totalSuccess === 0 ? 'failed' : 'completed',
+            jobsDiscovered: totalSuccess + totalAlreadyApplied + totalErrors,
+            jobsApplied: totalSuccess,
+            jobsFailed: totalErrors,
+          })
+          .where(eq(botRuns.id, botRunId));
+      } catch (runErr) {
+        console.warn('Could not update bot_runs finish status:', runErr);
+      }
+    }
   } catch (error: any) {
     onLog(`🚨 Fatal Bot Error: ${error.message || error}`);
+    if (botRunId) {
+      try {
+        const { db } = require('../db');
+        const { botRuns } = require('../db/schema');
+        const { eq } = require('drizzle-orm');
+        await db
+          .update(botRuns)
+          .set({
+            finishedAt: new Date(),
+            status: 'failed',
+            errorSummary: error?.message || String(error),
+          })
+          .where(eq(botRuns.id, botRunId));
+      } catch {}
+    }
   } finally {
     if (browser) {
       if (mode === 'headful') {

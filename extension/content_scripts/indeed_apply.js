@@ -175,7 +175,7 @@
       message: 'Mencari formulir lamaran Indeed...'
     }).catch(() => {});
 
-    let maxSteps = 12;
+    const maxSteps = 12;
     let stepCount = 0;
     const recordedQA = [];
 

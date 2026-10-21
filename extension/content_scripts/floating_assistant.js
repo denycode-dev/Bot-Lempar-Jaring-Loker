@@ -80,7 +80,7 @@
     const emailMatch = bodyText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     const eduMatch = bodyText.match(/\b(S1|S2|S3|D3|D4|SMA|SMK|Sarjana|Bachelor|Master)\b/i);
 
-    let profile = {
+    const profile = {
       sourcePortal: portal,
       phone: phoneMatch ? phoneMatch[0].trim() : '',
       email: emailMatch ? emailMatch[0].trim() : '',
@@ -492,11 +492,11 @@
     const elemW = rect.width || 360;
     const elemH = rect.height || 450;
 
-    let curLeft = rect.left;
-    let curTop = rect.top;
+    const curLeft = rect.left;
+    const curTop = rect.top;
 
-    let clampedLeft = Math.max(10, Math.min(winW - elemW - 10, curLeft));
-    let clampedTop = Math.max(10, Math.min(winH - elemH - 10, curTop));
+    const clampedLeft = Math.max(10, Math.min(winW - elemW - 10, curLeft));
+    const clampedTop = Math.max(10, Math.min(winH - elemH - 10, curTop));
 
     dragWindowEl.style.left = `${clampedLeft}px`;
     dragWindowEl.style.top = `${clampedTop}px`;

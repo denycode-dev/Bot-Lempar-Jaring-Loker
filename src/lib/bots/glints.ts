@@ -4,7 +4,7 @@ import { answerQuestion } from '../questionAnswer';
 import { captureFormDomSnapshot, inspectFormWithAi, applyAiFormActions } from '../aiFormInspector';
 import { evaluateJobMatch } from '../jobMatcher';
 import { generateDynamicCoverLetter } from '../coverLetterGenerator';
-import { humanClick, humanType, randomDelay } from '../humanStealth';
+import { humanClick, humanType } from '../humanStealth';
 import { parseCookiesInput, injectCookiesIntoPage } from '../cookieHelper';
 import { buildGlintsSearchUrl } from '../searchQueryBuilder';
 
@@ -52,7 +52,6 @@ export async function runGlintsBot(
     onLog(`🔗 URL saat ini: ${currentUrl}`);
 
     const resultUrl = page.url();
-    const resultTitle = await page.title();
     const baseSearchUrl = resultUrl.replace(/[?&]page=\d+/, '');
     const urlSeparator = baseSearchUrl.includes('?') ? '&' : '?';
 
@@ -129,7 +128,7 @@ export async function runGlintsBot(
           if (!rawHref) continue;
 
           // Buat absolute URL tanpa query params (?utm_...)
-          let cleanUrl = rawHref.startsWith('http') ? rawHref.split('?')[0] : `https://glints.com${rawHref.split('?')[0]}`;
+          const cleanUrl = rawHref.startsWith('http') ? rawHref.split('?')[0] : `https://glints.com${rawHref.split('?')[0]}`;
           const title = (titleAnchor.textContent || '').trim().replace(/\s+/g, ' ');
 
           // 2. ID Pekerjaan
@@ -358,7 +357,7 @@ export async function runGlintsBot(
                 .map((l: string) => l.trim().toLowerCase())
                 .filter(Boolean);
 
-              const wantsRemote = userLocations.some((l: string) => l.includes('remote') || l.includes('wfh'));
+              const _wantsRemote = userLocations.some((l: string) => l.includes('remote') || l.includes('wfh'));
               const isJobRemoteOrHybrid = detailInfo.isRemote || detailInfo.isHybrid || /remote|hybrid|wfh/i.test(activeLocation);
               const matchesCity = userLocations.some((l: string) => 
                 !l.includes('remote') && !l.includes('wfh') && activeLocation.toLowerCase().includes(l)
@@ -460,7 +459,7 @@ export async function runGlintsBot(
               }
 
               // 0b. Auto-fill Ekspektasi Gaji Bulanan (Min. & Max.) atau Resume di Step 1
-              await workerPage.evaluate((targetSalary: number) => {
+              await workerPage.evaluate((_targetSalary: number) => {
                 const modal = document.querySelector('[data-testid="modal-wrapper"]');
                 if (!modal) return;
 
@@ -490,7 +489,7 @@ export async function runGlintsBot(
                 const stepLabel = modal.querySelector('[class*="ProgressBarLabel"]')?.textContent?.trim() || '';
                 const headerTitle = modal.querySelector('[class*="ModalHeader"] [class*="Typography"], [class*="ModalContent"] h2, [class*="ModalContent"] h3')?.textContent?.trim() || '';
                 const bodyPrompt = modal.querySelector('[class*="ModalContent"] > p, [class*="ModalContent"] h4, form p')?.textContent?.trim() || '';
-                const mainQuestion = headerTitle || bodyPrompt || 'Formulir Lamaran';
+                const _mainQuestion = headerTitle || bodyPrompt || 'Formulir Lamaran';
 
                 const questions: Array<{
                   inputName: string;
@@ -783,7 +782,7 @@ export async function runGlintsBot(
                   workerLog(`💰 [Ekspektasi Gaji] Dropdown Min & Max gaji Glints berhasil dipilih sesuai profil (Rp ${config.expectedSalary || 4500000})!`);
                   await sleep(1000); // beri waktu lebih untuk React re-render dan validasi form
                 }
-              } catch (salaryErr: any) {
+              } catch (_salaryErr: any) {
                 // abaikan jika gagal
               }
 
@@ -1158,7 +1157,7 @@ export async function runGlintsBot(
                     if (btn) btn.click();
                   });
                 }
-              } catch (e) {
+              } catch {
                 await workerPage.evaluate(() => {
                   const btn = document.querySelector('button[data-testid="apply-next-step"], button[data-testid="apply-submit"]') as HTMLElement;
                   if (btn) btn.click();

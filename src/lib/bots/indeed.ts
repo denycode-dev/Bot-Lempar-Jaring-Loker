@@ -4,7 +4,6 @@ import { appendQuestionToCsv } from '../csvHelper';
 import { answerQuestion } from '../questionAnswer';
 import { generateCoverLetter } from '../coverLetterHelper';
 import { evaluateJobMatch } from '../jobMatcher';
-import { humanClick, humanType } from '../humanStealth';
 import { parseCookiesInput, injectCookiesIntoPage } from '../cookieHelper';
 import { buildIndeedSearchUrl } from '../searchQueryBuilder';
 
@@ -90,7 +89,7 @@ export async function runIndeedBot(
       return !!navAccount || !signInBtn;
     });
 
-    let currentUrl = page.url();
+    const currentUrl = page.url();
     if (currentUrl.includes('/account/login') || currentUrl.includes('/auth') || !isLoggedIn) {
       onLog('⚠️ Indeed: Sesi login belum aktif. Menunggu 30 detik untuk Anda login langsung di browser...');
       for (let waitSec = 0; waitSec < 6; waitSec++) {
@@ -333,7 +332,7 @@ export async function runIndeedBot(
         if (!detailInfo || !detailInfo.hasIndeedApply) {
           if (detailInfo?.isExternal) {
             onLog(`🌐 Terdeteksi tautan eksternal untuk "${activeTitle}". Mencoba membuka dan menyelesaikan dengan Universal External Job Solver...`);
-            let extPagePromise = new Promise<any>((resolve) => {
+            const extPagePromise = new Promise<any>((resolve) => {
               const handler = async (target: any) => {
                 if (target.type() === 'page') {
                   const p = await target.page();
@@ -406,7 +405,7 @@ export async function runIndeedBot(
             await applyPage.goto(detailInfo.applyHref, { waitUntil: 'domcontentloaded', timeout: 45000 });
           } else {
             // Pasang listener tab baru sebelum klik apply
-            let newTargetPromise: Promise<any> | null = new Promise((resolve) => {
+            const newTargetPromise: Promise<any> | null = new Promise((resolve) => {
               const handler = async (target: any) => {
                 if (target.type() === 'page') {
                   const p = await target.page();
@@ -465,7 +464,7 @@ export async function runIndeedBot(
             }
 
             // 1. Cek & Isi Location Fields jika muncul pada halaman lokasi (Add your location)
-            const locationHandled = await activeFrame.evaluate((candidateDomicile: string, candidateLocation: string, candidateAddress?: string) => {
+            const _locationHandled = await activeFrame.evaluate((candidateDomicile: string, candidateLocation: string, candidateAddress?: string) => {
               const container = document.querySelector('#ia-container, .ia-BasePage, [data-testid="ia-container"], main, body') || document;
               const locationHeading = container.querySelector('[data-testid="profile-location-page"], [data-testid="location-fields-country"], h2[data-testid="profile-location-heading"]');
               const postalInput = container.querySelector('input[name="location-postal-code"], [data-testid="location-fields-postal-code-input"]') as HTMLInputElement | null;
@@ -614,7 +613,7 @@ export async function runIndeedBot(
             // 4. Analisa form state & pertanyaan screening umum
             const formState = await activeFrame.evaluate(() => {
               const container = document.querySelector('#ia-container, .ia-BasePage, [data-testid="ia-container"], main, body') || document;
-              const textContent = container.textContent || '';
+              const _textContent = container.textContent || '';
 
               const successHeading = container.querySelector('[data-testid="confirmation-header"], [data-testid="success-header"], h1, h2');
               const hasFormFields = !!container.querySelector('input[type="text"], input[type="radio"], select, textarea, [data-testid*="location-fields"], fieldset, [role="combobox"]');
@@ -750,7 +749,7 @@ export async function runIndeedBot(
                 const legend = fieldset?.querySelector('legend, h2, h3, h4, [data-testid*="label"]');
                 const firstLbl = container.querySelector(`label[for="${firstCb.id}"]`) || firstCb.closest('label') || firstCb.parentElement;
 
-                let qText = (legend?.textContent || firstLbl?.textContent || firstCb.name || 'Demographic Question').trim().replace(/\s+/g, ' ').replace(/\s*\*\s*$/, '');
+                const qText = (legend?.textContent || firstLbl?.textContent || firstCb.name || 'Demographic Question').trim().replace(/\s+/g, ' ').replace(/\s*\*\s*$/, '');
 
                 const options: string[] = [];
                 for (const cb of group) {

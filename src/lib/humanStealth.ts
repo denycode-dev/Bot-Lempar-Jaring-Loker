@@ -15,13 +15,6 @@ export function getRandomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-/**
- * Adds a natural human pause with slight random jitter
- */
-export async function randomDelay(minMs: number = 800, maxMs: number = 2200): Promise<void> {
-  const ms = getRandomInt(minMs, maxMs);
-  await sleep(ms);
-}
 
 /**
  * Types text character by character with human-like speed variances,
@@ -42,7 +35,7 @@ export async function humanType(
   const clearFirst = options?.clearFirst ?? true;
 
   try {
-    let handle = typeof selectorOrElement === 'string' 
+    const handle = typeof selectorOrElement === 'string' 
       ? await page.$(selectorOrElement) 
       : selectorOrElement;
 
@@ -84,7 +77,7 @@ export async function humanType(
     }
 
     await sleep(getRandomInt(120, 300));
-  } catch (err) {
+  } catch {
     // Fallback directly via evaluate if typing fails
     try {
       if (typeof selectorOrElement === 'string') {

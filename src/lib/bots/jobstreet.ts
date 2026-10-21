@@ -236,7 +236,7 @@ export async function runJobstreetBot(
             continue;
           }
 
-          let applyPage = workerPage;
+          const applyPage = workerPage;
 
           try {
           onLog(`[Worker ${workerId + 1}] 🔗 Opening Job: ${url}`);
@@ -515,7 +515,7 @@ export async function runJobstreetBot(
                 onLog(`[Worker ${workerId + 1}] 🟢 Formulir lamaran terbuka di tab yang sama.`);
               }
             }
-          } catch (e) {}
+          } catch {}
 
           // Handle the questionnaire flow
           let stepCount = 0;

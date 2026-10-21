@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       if (global.activeSetupBrowser) {
         try {
           await global.activeSetupBrowser.close();
-        } catch (e) {}
+        } catch {}
         global.activeSetupBrowser = null;
         return NextResponse.json({ success: true, message: 'Browser closed' });
       }

@@ -208,7 +208,7 @@
     const urls = new Set();
     const links = safeQueryAll('a[href*="/in/"]');
     links.forEach((a) => {
-      let href = a.href.split('?')[0].replace(/\/+$/, '');
+      const href = a.href.split('?')[0].replace(/\/+$/, '');
       if (href.includes('/in/') && !href.endsWith('/in') && !href.includes('/recent-activity/')) {
         urls.add(href);
       }

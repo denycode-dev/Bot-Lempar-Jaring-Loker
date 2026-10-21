@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSourcedTalents, exportTalentsToCsv, upsertCandidate } from '@/lib/talentStorage';
+import { getSourcedTalentsAsync, exportTalentsToCsv, upsertCandidate } from '@/lib/talentStorage';
 import { buildLinkedInXRayQuery, parseGoogleResultsFromText, getBookmarkletCode, getLinkedInProfileBookmarkletCode } from '@/lib/xraySearch';
 import { evaluateCandidateIntegrity, parseTalentPromptWithAi } from '@/lib/talentMatcher';
 import { TalentCandidate, TalentFilter } from '@/lib/talentTypes';
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, bookmarklet: getLinkedInProfileBookmarkletCode() });
   }
 
-  const talents = getSourcedTalents();
+  const talents = await getSourcedTalentsAsync();
 
   if (format === 'csv') {
     const csvContent = exportTalentsToCsv(talents);

@@ -1,7 +1,7 @@
 import { Page } from 'puppeteer';
 import { askUniversalAi } from './aiGateway';
 import { addAppliedJob } from './storage';
-import { sleep, humanType, humanClick } from './humanStealth';
+import { sleep } from './humanStealth';
 import path from 'path';
 import fs from 'fs';
 
@@ -199,7 +199,7 @@ Instruksi:
           if (aiResponseText) {
             fillValue = aiResponseText.trim().replace(/^["']|["']$/g, '');
           }
-        } catch (e) {}
+        } catch {}
       }
 
       if (fillValue) {
@@ -276,7 +276,7 @@ Instruksi:
       };
     } else {
       onLog('🚀 [External Job Solver] Mengirimkan formulir lamaran eksternal...');
-      const submitted = await page.evaluate(() => {
+      await page.evaluate(() => {
         const submitBtn = document.querySelector('button[type="submit"], input[type="submit"]') ||
                           Array.from(document.querySelectorAll('button, a')).find(b => 
                             /^(submit|submit application|send application|kirim lamaran|apply)$/i.test((b.textContent || '').trim())

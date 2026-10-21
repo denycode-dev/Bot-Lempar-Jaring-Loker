@@ -1064,6 +1064,70 @@ function getPreAnsweredQuestion(questionText: string, options: string[]): string
   return null;
 }
 
+async function getDbPreAnsweredQuestion(questionText: string, options: string[]): Promise<string[] | null> {
+  const targetClean = questionText.toLowerCase().trim();
+  const targetNormalized = targetClean.replace(/[^a-z0-9]/g, '');
+  if (!targetNormalized) return null;
+
+  try {
+    const { db } = require('../db');
+    const { screeningQuestions } = require('../db/schema');
+    const { eq, and, sql } = require('drizzle-orm');
+
+    // 1. Exact Normalized Match in PostgreSQL (< 2ms)
+    const exact = await db.query.screeningQuestions.findFirst({
+      where: and(
+        eq(screeningQuestions.userId, 'default-user'),
+        eq(screeningQuestions.normalizedQuestion, targetNormalized)
+      ),
+    });
+
+    let matchedAnswer: string | null = null;
+    let matchedId: string | null = null;
+
+    if (exact && exact.answerText) {
+      matchedAnswer = exact.answerText;
+      matchedId = exact.id;
+    } else {
+      // 2. Trigram Fuzzy Match in PostgreSQL (< 15ms)
+      const fuzzy = await db.execute(sql`
+        SELECT id, question_text, answer_text, GREATEST(similarity(question_text, ${questionText}), similarity(normalized_question, ${targetNormalized})) as sim
+        FROM screening_questions
+        WHERE user_id = 'default-user' AND (similarity(question_text, ${questionText}) >= 0.60 OR similarity(normalized_question, ${targetNormalized}) >= 0.60)
+        ORDER BY sim DESC
+        LIMIT 1;
+      `);
+
+      const rows = Array.isArray(fuzzy) ? fuzzy : (fuzzy as any).rows;
+      if (rows && rows.length > 0 && rows[0]?.answer_text) {
+        matchedAnswer = rows[0].answer_text;
+        matchedId = rows[0].id;
+      }
+    }
+
+    if (matchedAnswer) {
+      if (matchedId) {
+        db.execute(sql`UPDATE screening_questions SET usage_count = usage_count + 1, last_used_at = NOW() WHERE id = ${matchedId}`).catch(() => {});
+      }
+
+      const answers = matchedAnswer.split('||').map((a: string) => a.trim()).filter((a: string) => a.length > 0);
+
+      if (options && options.length > 0) {
+        const validAnswers = answers.filter((ans: string) =>
+          options.includes(ans) || options.some((o: string) => o.toLowerCase() === ans.toLowerCase())
+        );
+        if (validAnswers.length > 0) return validAnswers;
+      } else {
+        return answers;
+      }
+    }
+  } catch (error) {
+    console.warn('PostgreSQL question lookup failed, falling back to memory cache:', error);
+  }
+
+  return getPreAnsweredQuestion(questionText, options);
+}
+
 // Export answerQuestion for bot integration
 export async function answerQuestion(
   question: string,
@@ -1071,10 +1135,10 @@ export async function answerQuestion(
   type: "dropdown" | "checklist" | "radiobutton" | "text" | "unknown"
 ): Promise<string[]> {
   try {
-    // 1. Priority: Check Local Knowledge Base Cache (imploye-question.csv)
-    const cachedAnswers = getPreAnsweredQuestion(question, options);
-    if (cachedAnswers !== null) {
-      return cachedAnswers;
+    // 1. Priority: Check PostgreSQL Screening Question Bank (Exact < 2ms, Fuzzy < 15ms)
+    const dbAnswers = await getDbPreAnsweredQuestion(question, options);
+    if (dbAnswers !== null && dbAnswers.length > 0) {
+      return dbAnswers;
     }
 
     // 2. Second Priority: Regex pattern rules
@@ -1084,8 +1148,35 @@ export async function answerQuestion(
       return regexAnswer;
     }
 
-    // 3. Fallback: Ask Gemini LLM
-    return await askLLM(question, options, normType);
+    // 3. Fallback: Ask Universal AI LLM
+    const aiAnswers = await askLLM(question, options, normType);
+
+    // Auto-persist newly generated answer to PostgreSQL with review_status = 'unreviewed'
+    if (aiAnswers && aiAnswers.length > 0) {
+      try {
+        const { db } = require('../db');
+        const { screeningQuestions } = require('../db/schema');
+        const normQ = question.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (normQ) {
+          await db.insert(screeningQuestions).values({
+            userId: 'default-user',
+            questionText: question,
+            normalizedQuestion: normQ,
+            answerText: aiAnswers.join(' || '),
+            category: 'general',
+            matchType: 'ai_generated',
+            confidenceScore: '0.85',
+            reviewStatus: 'unreviewed', // Active-learning review workflow
+            usageCount: 1,
+            lastUsedAt: new Date(),
+          }).onConflictDoNothing();
+        }
+      } catch (saveErr) {
+        console.warn('Could not auto-persist AI answer to DB:', saveErr);
+      }
+    }
+
+    return aiAnswers;
   } catch (err) {
     console.error(`AI failed to answer "${question}":`, err);
     return [options[0]]; // fallback to first option

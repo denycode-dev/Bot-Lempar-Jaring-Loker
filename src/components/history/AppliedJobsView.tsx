@@ -4,7 +4,6 @@ import React, { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Search,
   Download,
@@ -18,10 +17,6 @@ import {
   ChevronRight,
   Database,
   ExternalLink,
-  Check,
-  X,
-  Clock,
-  Minus,
 } from 'lucide-react';
 import JobCard, { AppliedJobCard, formatJobDate } from '@/components/JobCard';
 

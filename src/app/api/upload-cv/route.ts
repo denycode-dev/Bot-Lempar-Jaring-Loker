@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { getConfig, saveConfig } from '@/lib/config';
 import { extractTextFromFile, analyzeCvWithAi } from '@/lib/cvAnalyzer';
+import { db } from '@/db';
+import { cvDocuments, applicantProfiles } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +31,8 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
-    const file = formData.get('file') as File | null;
+    // Accept either 'file' or 'cv' field name
+    const file = (formData.get('file') || formData.get('cv')) as File | null;
 
     if (!file) {
       return NextResponse.json({ success: false, error: 'File CV tidak ditemukan dalam request' }, { status: 400 });
@@ -88,13 +93,36 @@ export async function POST(request: Request) {
     }
 
     // 3. Simpan path & hasil ke AppConfig
-    const currentConfig = getConfig();
     const updates: any = {
       cvFileName: originalName,
       cvFilePath: targetFilePath,
       cvExtractedText: extractedText,
       cvAnalyzedAt: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }),
     };
+
+    // 4. Simpan ke database PostgreSQL (cv_documents)
+    try {
+      const fileHash = crypto.createHash('sha256').update(buffer).digest('hex');
+
+      await db
+        .update(cvDocuments)
+        .set({ isPrimary: false })
+        .where(eq(cvDocuments.userId, 'default-user'));
+
+      await db.insert(cvDocuments).values({
+        userId: 'default-user',
+        fileName: originalName,
+        filePath: targetFilePath,
+        fileHash,
+        fileSize: file.size,
+        mimeType: file.type || (ext === '.pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+        extractedText,
+        aiAnalysisSummary: aiParsedProfile || {},
+        isPrimary: true,
+      });
+    } catch (dbErr) {
+      console.warn('Could not persist cv document to PostgreSQL:', dbErr);
+    }
 
     const updatedFields: string[] = [];
     const unchangedFields: string[] = [];
@@ -185,6 +213,45 @@ export async function POST(request: Request) {
         updates.portfolioUrl = aiParsedProfile.portfolioUrl;
         updatedFields.push('portfolioUrl');
       }
+
+      // Sync updated profile to PostgreSQL applicant_profiles
+      try {
+        const skillsArr = typeof aiParsedProfile.skills === 'string'
+          ? aiParsedProfile.skills.split(',').map((s: string) => s.trim()).filter(Boolean)
+          : (Array.isArray(aiParsedProfile.skills) ? aiParsedProfile.skills : undefined);
+
+        await db
+          .insert(applicantProfiles)
+          .values({
+            userId: 'default-user',
+            fullName: aiParsedProfile.fullName || 'User',
+            email: aiParsedProfile.email || 'user@example.com',
+            phone: aiParsedProfile.phoneNumber || '-',
+            currentAddress: aiParsedProfile.address || aiParsedProfile.domicile,
+            linkedinUrl: aiParsedProfile.linkedinUrl,
+            githubUrl: aiParsedProfile.githubUrl,
+            portfolioUrl: aiParsedProfile.portfolioUrl,
+            professionalSummary: aiParsedProfile.summary,
+            skills: skillsArr || [],
+          })
+          .onConflictDoUpdate({
+            target: [applicantProfiles.userId],
+            set: {
+              ...(aiParsedProfile.fullName ? { fullName: aiParsedProfile.fullName } : {}),
+              ...(aiParsedProfile.email ? { email: aiParsedProfile.email } : {}),
+              ...(aiParsedProfile.phoneNumber ? { phone: aiParsedProfile.phoneNumber } : {}),
+              ...(aiParsedProfile.address || aiParsedProfile.domicile ? { currentAddress: aiParsedProfile.address || aiParsedProfile.domicile } : {}),
+              ...(aiParsedProfile.linkedinUrl ? { linkedinUrl: aiParsedProfile.linkedinUrl } : {}),
+              ...(aiParsedProfile.githubUrl ? { githubUrl: aiParsedProfile.githubUrl } : {}),
+              ...(aiParsedProfile.portfolioUrl ? { portfolioUrl: aiParsedProfile.portfolioUrl } : {}),
+              ...(aiParsedProfile.summary ? { professionalSummary: aiParsedProfile.summary } : {}),
+              ...(skillsArr ? { skills: skillsArr } : {}),
+              updatedAt: new Date(),
+            },
+          });
+      } catch (profErr) {
+        console.warn('Could not sync applicant profile to PostgreSQL:', profErr);
+      }
     }
 
     for (const key of fieldKeys) {
@@ -202,6 +269,8 @@ export async function POST(request: Request) {
           ? `File CV diunggah & AI memperbarui ${updatedFields.length} kolom data profil!`
           : 'File CV berhasil diunggah (Data profil tidak diperbarui sesuai pilihan).'
         : 'File CV berhasil diunggah (analisis AI opsional).',
+      extractedText,
+      parsedCv: aiParsedProfile,
       aiParsed: aiParsedProfile,
       aiError: aiError || null,
       updatedFields,

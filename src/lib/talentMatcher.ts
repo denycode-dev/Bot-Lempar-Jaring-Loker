@@ -61,7 +61,7 @@ Format Output JSON persis:
   // Hitung heuristik durasi kerja
   let totalYears = 0;
   let hasLongStay = false;
-  let expCount = candidate.experiences?.length || 0;
+  const expCount = candidate.experiences?.length || 0;
 
   if (candidate.experiences) {
     for (const exp of candidate.experiences) {

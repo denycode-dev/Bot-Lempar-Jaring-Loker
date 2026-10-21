@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Multi-Job Detection Elements
   const multiJobDetectedView = document.getElementById('multi-job-detected-view');
-  const singleJobDetectedView = document.getElementById('single-job-detected-view');
+  const _singleJobDetectedView = document.getElementById('single-job-detected-view');
   const multiJobCountText = document.getElementById('multi-job-count-text');
   const multiJobFilterMatch = document.getElementById('multi-job-filter-match');
   const multiJobPreviewSnippets = document.getElementById('multi-job-preview-snippets');

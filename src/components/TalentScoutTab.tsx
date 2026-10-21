@@ -17,27 +17,16 @@ import {
   Bot, 
   Loader2, 
   Copy, 
-  Check, 
-  X, 
   Users, 
   Briefcase, 
   FileText, 
   SlidersHorizontal,
-  ArrowRight,
   ShieldCheck,
-  Clock,
-  Building2,
   CheckCircle2,
-  AlertCircle,
-  PhoneCall,
-  Activity,
-  Calendar,
-  Layers,
-  GraduationCap
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { TalentCandidate, TalentFilter, ParsedTalentPrompt } from '@/lib/talentTypes';
-import { generateWhatsAppUrl, getBookmarkletCode, getLinkedInProfileBookmarkletCode, generateOsintContactUrl } from '@/lib/xraySearch';
+import { generateWhatsAppUrl, generateOsintContactUrl } from '@/lib/xraySearch';
 import { CandidateDetailDialog } from '@/components/talent/modals/CandidateDetailDialog';
 import { PasteResultDialog } from '@/components/talent/modals/PasteResultDialog';
 import { BookmarkletGuideDialog } from '@/components/talent/modals/BookmarkletGuideDialog';
@@ -171,8 +160,12 @@ export default function TalentScoutTab() {
 
   // Initial load
   useEffect(() => {
-    fetchTalents();
-    handleGenerateAiPrompt();
+    const timer = setTimeout(() => {
+      fetchTalents();
+      handleGenerateAiPrompt();
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Provider change handler

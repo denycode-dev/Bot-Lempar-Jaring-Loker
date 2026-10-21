@@ -4,7 +4,7 @@ import { answerQuestion } from '../questionAnswer';
 import { captureFormDomSnapshot, inspectFormWithAi, applyAiFormActions } from '../aiFormInspector';
 import { evaluateJobMatch } from '../jobMatcher';
 import { generateDynamicCoverLetter } from '../coverLetterGenerator';
-import { humanClick, humanType, randomDelay } from '../humanStealth';
+import { humanClick, humanType } from '../humanStealth';
 import { parseCookiesInput, injectCookiesIntoPage } from '../cookieHelper';
 import { buildLinkedinSearchUrl } from '../searchQueryBuilder';
 
@@ -28,7 +28,7 @@ export async function runLinkedinBot(
 ): Promise<BotMetrics> {
   let successCount = 0;
   let alreadyAppliedCount = 0;
-  let errorCount = 0;
+  const errorCount = 0;
 
   try {
     const { url: searchUrl, displayKeywords } = buildLinkedinSearchUrl(config);
@@ -78,7 +78,7 @@ export async function runLinkedinBot(
       return hasNav || (!hasSignIn && !window.location.href.includes('/login') && !window.location.href.includes('/signup') && !window.location.href.includes('/checkpoint'));
     });
 
-    let currentUrl = page.url();
+    const currentUrl = page.url();
     if (currentUrl.includes('/login') || currentUrl.includes('/signup') || currentUrl.includes('/checkpoint') || !isLoggedIn) {
       onLog('⚠️ LinkedIn: Sesi login belum terdeteksi. Menunggu 30 detik untuk Anda login langsung di tab browser ini...');
       for (let logWait = 0; logWait < 6; logWait++) {
@@ -209,7 +209,7 @@ export async function runLinkedinBot(
         await sleep(500);
 
         // 3. Ekstraksi info detail dari kartu loker di panel kiri
-        let cardInfo = await page.evaluate((jobId: string) => {
+        const cardInfo = await page.evaluate((jobId: string) => {
           const cardLi = document.querySelector(`li[data-occludable-job-id="${jobId}"]`) as HTMLElement;
           if (!cardLi) return null;
 
@@ -297,7 +297,7 @@ export async function runLinkedinBot(
         await sleep(1500);
 
         // 5. Ekstraksi info detail & tombol Apply di komponen panel kanan
-        const getRightPaneDetail = () => page.evaluate((currentJobId: string) => {
+        const getRightPaneDetail = () => page.evaluate((_currentJobId: string) => {
           const detailContainer = document.querySelector(
             '.jobs-search__job-details--container, .jobs-search__job-details--wrapper, .jobs-details, .scaffold-layout__detail, main'
           );
@@ -1000,7 +1000,7 @@ export async function runLinkedinBot(
 
                 const input = formElement.querySelector('input, textarea') as HTMLInputElement | HTMLTextAreaElement;
                 if (input) {
-                  let currentVal = input.value || '';
+                  const currentVal = input.value || '';
                   // Jika LinkedIn meminta whole number (angka bulat 0-99) atau input kosong
                   if (/whole number|between 0 and 99|angka bulat|number|numeric/i.test(errText) || !currentVal) {
                     const digitMatch = currentVal.match(/\d+/);

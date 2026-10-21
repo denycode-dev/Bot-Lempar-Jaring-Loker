@@ -109,7 +109,7 @@ PROFIL PELAMAR:
 `.trim();
 
     const formattedQuestionsForPrompt = chunkQuestions.map((item, idx) => {
-      let optStr = item.options ? ` | Opsi: [${item.options}]` : '';
+      const optStr = item.options ? ` | Opsi: [${item.options}]` : '';
       return `${idx + 1}. [Tipe: ${item.type}] "${item.question}"${optStr}`;
     }).join('\n');
 

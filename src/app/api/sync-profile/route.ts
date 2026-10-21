@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     } finally {
       try {
         await writer.close();
-      } catch (e) {}
+      } catch {}
     }
   })();
 

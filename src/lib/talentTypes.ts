@@ -62,17 +62,6 @@ export interface TalentFilter {
   requireContact: boolean; // Phone or Email
 }
 
-export interface XRaySearchResult {
-  title: string;
-  snippet: string;
-  url: string;
-  parsedName?: string;
-  parsedHeadline?: string;
-  parsedLocation?: string;
-  extractedPhone?: string;
-  extractedEmail?: string;
-}
-
 export interface ParsedTalentPrompt {
   originalPrompt: string;
   primaryRole: string;

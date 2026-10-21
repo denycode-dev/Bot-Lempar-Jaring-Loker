@@ -14,10 +14,10 @@ let API_BASE = 'http://localhost:3000';
 let maxConcurrency = 4;
 let isPaused = false;
 let taskQueue = []; // [{ id, type, url, data, retries }]
-let runningTasks = new Map(); // tabId -> { id, type, url, data, startTime, timerId, provider }
+const runningTasks = new Map(); // tabId -> { id, type, url, data, startTime, timerId, provider }
 let completedCount = 0;
 let failedCount = 0;
-let recentLogs = [];
+const recentLogs = [];
 
 // Provider Tab Tracking (providerName -> tabId)
 const providerTabs = new Map();
@@ -203,7 +203,7 @@ function finishTask(tabId, isSuccess, summaryOrError) {
 }
 
 // Watch tab updates to signal content script when page is ready
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, _tab) => {
   if (changeInfo.status === 'complete' && runningTasks.has(tabId)) {
     const task = runningTasks.get(tabId);
     setTimeout(() => {

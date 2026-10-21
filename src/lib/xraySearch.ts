@@ -1,4 +1,4 @@
-import { TalentFilter, XRaySearchResult } from './talentTypes';
+import { TalentFilter } from './talentTypes';
 
 /**
  * Google X-Ray Search Query Builder for Talent Sourcing
@@ -74,7 +74,7 @@ export function generateWhatsAppUrl(phone: string, candidateName: string, compan
 /**
  * Generator URL Pencarian OSINT Kontak (Google Dorking untuk Melacak CV PDF / Nomor WA Publik)
  */
-export function generateOsintContactUrl(name: string, location?: string): string {
+export function generateOsintContactUrl(name: string, _location?: string): string {
   const cleanName = name.replace(/[^a-zA-Z0-9\s]/g, '').trim();
   const q = `"${cleanName}" ("08" OR "628" OR "@gmail.com" OR "wa.me" OR filetype:pdf OR resume OR cv)`;
   return `https://www.google.com/search?q=${encodeURIComponent(q)}`;

@@ -200,7 +200,11 @@ export function CvDiffDialog({
                                 if (!canSelect) return;
                                 setSelectedDiffFields((prev) => {
                                   const next = new Set(prev);
-                                  next.has(item.field) ? next.delete(item.field) : next.add(item.field);
+                                  if (next.has(item.field)) {
+                                    next.delete(item.field);
+                                  } else {
+                                    next.add(item.field);
+                                  }
                                   return next;
                                 });
                               }}
@@ -215,9 +219,11 @@ export function CvDiffDialog({
                                     onCheckedChange={() => {
                                       setSelectedDiffFields((prev) => {
                                         const next = new Set(prev);
-                                        next.has(item.field)
-                                          ? next.delete(item.field)
-                                          : next.add(item.field);
+                                        if (next.has(item.field)) {
+                                          next.delete(item.field);
+                                        } else {
+                                          next.add(item.field);
+                                        }
                                         return next;
                                       });
                                     }}

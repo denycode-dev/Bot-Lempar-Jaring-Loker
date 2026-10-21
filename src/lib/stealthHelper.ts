@@ -11,11 +11,11 @@ export async function applyStealthToPage(page: any): Promise<void> {
     } else if (typeof page.setViewportSize === 'function') {
       await page.setViewportSize({ width: 1366, height: 768 });
     }
-  } catch (e) {}
+  } catch {}
 
   try {
     await page.setExtraHTTPHeaders({
       'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
     });
-  } catch (e) {}
+  } catch {}
 }

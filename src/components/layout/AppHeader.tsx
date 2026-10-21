@@ -1,216 +1,113 @@
 'use client';
 
-import React from 'react';
-import {
-  Menu,
-  Moon,
-  Sun,
-  Square,
-  Play,
-  Globe,
-} from 'lucide-react';
-import { NavTab, WizardStep, AppConfig } from '@/types';
+import React, { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import { Menu, Moon, Sun, Terminal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { OnboardingTour } from '@/components/OnboardingTour';
+import Link from 'next/link';
 
 interface AppHeaderProps {
-  activeTab: NavTab;
-  setActiveTab: (tab: NavTab) => void;
-  wizardStep: WizardStep;
-  setWizardStep: (step: WizardStep) => void;
-  config: AppConfig;
-  setConfig: React.Dispatch<React.SetStateAction<AppConfig>>;
-  isBotRunning: boolean;
-  isSetupBrowserRunning: boolean;
-  handleStopBot: () => void;
-  executeStartBot: (mode: 'headless' | 'headful', platform?: string, customLimit?: number) => void;
-  handleToggleTheme: () => void;
-  isMounted: boolean;
-  themeMode: string;
-  resolvedTheme: string;
   setIsMobileMenuOpen: (open: boolean) => void;
+  isBotRunning?: boolean;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
-  activeTab,
-  setActiveTab,
-  wizardStep,
-  setWizardStep,
-  config,
-  setConfig,
-  isBotRunning,
-  isSetupBrowserRunning,
-  handleStopBot,
-  executeStartBot,
-  handleToggleTheme,
-  isMounted,
-  themeMode,
-  resolvedTheme,
   setIsMobileMenuOpen,
+  isBotRunning = false,
 }) => {
-  const getTabTitle = () => {
-    switch (activeTab) {
-      case 'wizard':
-        return 'Setup Target Loker & Profil';
-      case 'logs':
-        return 'Terminal Pemantau Eksekusi Bot';
-      case 'questions':
-        return 'Koleksi Jawaban Kuesioner Loker';
-      case 'history':
-        return 'Rekap Loker yang Sudah Dilamar';
-      case 'jobs':
-        return 'Daftar Lowongan Kerja';
-      case 'talent':
-        return 'Talent Scout & Sourcing Engine (Outsourcing & HRIS)';
-      case 'settings':
-        return 'Pengaturan Sistem & Integrasi';
-      default:
-        return 'AutoApply';
+  const pathname = usePathname();
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsMounted(true);
+      const isDark =
+        document.documentElement.classList.contains('dark') ||
+        localStorage.getItem('theme') === 'dark';
+      setTheme(isDark ? 'dark' : 'light');
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    if (nextTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
     }
   };
 
+  const getPageInfo = () => {
+    if (pathname === '/') return { title: 'Dashboard Analytics', subtitle: 'Metrik kinerja dan status eksekusi lamaran' };
+    if (pathname.startsWith('/profile')) return { title: 'Profil & Dokumen CV', subtitle: 'Informasi pelamar dan analisis kecocokan resume AI' };
+    if (pathname.startsWith('/connection')) return { title: 'Koneksi Portal & EEO', subtitle: 'Status sesi portal kerja dan preferensi kepatuhan kerja' };
+    if (pathname.startsWith('/questions')) return { title: 'Bank Soal Kuesioner', subtitle: 'Basis pengetahuan jawaban otomatis screening portal' };
+    if (pathname.startsWith('/applications')) return { title: 'Riwayat Lamaran', subtitle: 'Daftar lowongan yang sudah dilamar beserta log audit Q&A' };
+    if (pathname.startsWith('/automation')) return { title: 'Automasi Bot', subtitle: 'Peluncur bot pencari kerja dan pemantau log langsung SSE' };
+    if (pathname.startsWith('/talents')) return { title: 'Reverse Talent Scout', subtitle: 'Penelusuran talenta kandidat melalui Google X-Ray Search' };
+    if (pathname.startsWith('/settings')) return { title: 'Pengaturan & AI', subtitle: 'Konfigurasi provider AI terenkripsi dan parameter sistem' };
+    return { title: 'AutoApply', subtitle: 'Platform automasi lamaran kerja multi-portal' };
+  };
+
+  const { title, subtitle } = getPageInfo();
+
   return (
-    <header className="min-h-[3.5rem] sm:min-h-[4.5rem] py-2 sm:py-3.5 px-2.5 sm:px-6 md:px-8 border-b header-theme flex items-center justify-between transition-colors shrink-0 shadow-xs sticky top-0 z-20 backdrop-blur-md gap-2">
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
-        {/* Mobile Hamburger Menu Button */}
+    <header className="h-16 px-4 md:px-8 border-b border-border bg-card/60 backdrop-blur-md flex items-center justify-between sticky top-0 z-20 shrink-0">
+      <div className="flex items-center gap-3 min-w-0">
         <Button
           type="button"
           variant="outline"
           size="icon"
           onClick={() => setIsMobileMenuOpen(true)}
-          className="md:hidden rounded-md h-9 w-9 shrink-0"
-          aria-label="Buka Menu Navigasi"
+          className="md:hidden rounded-lg h-9 w-9 shrink-0"
+          aria-label="Buka Menu"
         >
-          <Menu className="w-5 h-5 text-foreground" />
+          <Menu className="w-4 h-4 text-foreground" />
         </Button>
 
-        {/* Mobile Brand Logo */}
-        <div className="flex items-center md:hidden shrink-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/header-light.svg"
-            alt="AutoApply"
-            className="logo-theme-light dark:hidden h-6 w-auto object-contain select-none"
-          />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/header-dark.svg"
-            alt="AutoApply"
-            className="logo-theme-dark hidden dark:block h-6 w-auto object-contain select-none"
-          />
+        <div className="flex flex-col min-w-0">
+          <h1 className="text-sm md:text-base font-semibold text-foreground tracking-tight truncate">
+            {title}
+          </h1>
+          <p className="text-[11px] text-muted-foreground hidden sm:block truncate">
+            {subtitle}
+          </p>
         </div>
-
-        {/* Desktop Section Title */}
-        <span className="hidden md:block text-sm font-semibold text-foreground truncate">
-          {getTabTitle()}
-        </span>
       </div>
 
-      {/* Main Action Buttons + Theme Toggle */}
-      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        {/* Quick Toggle: Mode Simulasi / Live Submit */}
-        <div
-          id="tour-mode-toggle"
-          onClick={() => {
-            const nextVal = !config.debugTest;
-            setConfig({ ...config, debugTest: nextVal });
-            fetch('/api/config', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...config, debugTest: nextVal }),
-            }).catch(() => {});
-          }}
-          className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-md border text-xs font-medium cursor-pointer select-none transition flex items-center gap-1.5 shadow-xs shrink-0 ${
-            config.debugTest
-              ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20'
-              : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
-          }`}
-          title="Klik untuk mengganti mode Simulasi (Dry-run) atau Live Kirim Lamaran Langsung"
-        >
-          <div
-            className={`w-2 h-2 rounded-full shrink-0 ${
-              config.debugTest ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'
+      <div className="flex items-center gap-2.5 shrink-0">
+        <Link href="/automation">
+          <Button
+            size="sm"
+            className={`text-xs gap-1.5 h-8 font-medium ${
+              isBotRunning
+                ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse'
+                : 'bg-brand hover:bg-brand-hover text-brand-foreground shadow-xs'
             }`}
-          />
-          <span className="leading-tight font-semibold text-[11px] sm:text-xs">
-            {config.debugTest ? 'Simulasi' : 'LIVE'}
-          </span>
-        </div>
+          >
+            <Terminal className="w-3.5 h-3.5" />
+            <span>{isBotRunning ? 'Bot Berjalan' : 'Jalankan Automasi'}</span>
+          </Button>
+        </Link>
 
-        {/* Interactive Onboarding Tour Button */}
-        <div className="hidden md:flex items-center">
-          <OnboardingTour
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            wizardStep={wizardStep}
-            setWizardStep={setWizardStep}
-          />
-        </div>
-
-        {/* Theme Toggle Button */}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleToggleTheme}
-          className="rounded-md px-2 sm:px-2.5 h-8 sm:h-9 text-muted-foreground hover:text-foreground gap-1 text-xs shadow-xs shrink-0"
-          title={
-            isMounted
-              ? `Tema saat ini: ${
-                  themeMode === 'system' ? 'Sistem' : themeMode === 'dark' ? 'Gelap' : 'Terang'
-                }`
-              : 'Ganti Tema'
-          }
-        >
-          {isMounted && resolvedTheme === 'dark' ? (
-            <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-brand" />
-          ) : (
-            <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500" />
-          )}
-          <span className="hidden lg:inline capitalize">
-            {isMounted ? (themeMode === 'system' ? 'Auto' : themeMode) : 'Auto'}
-          </span>
-        </Button>
-
-        {isBotRunning ? (
+        {isMounted ? (
           <Button
             type="button"
-            variant="destructive"
-            size="sm"
-            onClick={handleStopBot}
-            className="rounded-md text-xs font-medium gap-1.5 shrink-0"
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
+            className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
+            aria-label="Ganti Tema"
           >
-            <Square className="w-3.5 h-3.5 fill-current" />
-            <span>Hentikan</span>
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </Button>
         ) : (
-          <div id="tour-start-bot" className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <Button
-              type="button"
-              variant="brand"
-              size="sm"
-              onClick={() => executeStartBot('headless')}
-              disabled={isSetupBrowserRunning}
-              className="rounded-md text-xs font-medium gap-1.5 shadow-xs disabled:opacity-50 shrink-0"
-              title="Jalankan bot di latar belakang (tanpa jendela browser)"
-            >
-              <Play className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />
-              <span>Run</span>
-              <span className="hidden sm:inline">(Headless)</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => executeStartBot('headful')}
-              disabled={isSetupBrowserRunning}
-              className="hidden sm:flex rounded-md text-xs font-medium gap-1.5 disabled:opacity-50 shadow-xs shrink-0"
-              title="Jalankan dengan jendela browser terbuka"
-            >
-              <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>Run (Headful)</span>
-            </Button>
-          </div>
+          <div className="w-8 h-8" />
         )}
       </div>
     </header>

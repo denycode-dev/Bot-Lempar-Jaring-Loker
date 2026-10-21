@@ -67,7 +67,7 @@ export async function POST(request: Request) {
         loggedIn: isLoggedLinkedin && isNotLoginUrl,
         details: isLoggedLinkedin && isNotLoginUrl ? 'Sesi aktif' : 'Belum login / Sesi kedaluwarsa',
       };
-    } catch (e: any) {
+    } catch (_e: any) {
       results.linkedin = { loggedIn: false, details: 'Gagal memuat halaman' };
     }
 
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
         loggedIn: isLoggedJobstreet,
         details: isLoggedJobstreet ? 'Sesi aktif' : 'Belum login',
       };
-    } catch (e: any) {
+    } catch (_e: any) {
       results.jobstreet = { loggedIn: false, details: 'Gagal memuat halaman' };
     }
 
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
         loggedIn: isLoggedGlints,
         details: isLoggedGlints ? 'Sesi aktif' : 'Belum login',
       };
-    } catch (e: any) {
+    } catch (_e: any) {
       results.glints = { loggedIn: false, details: 'Gagal memuat halaman' };
     }
 
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
         loggedIn: isLoggedIndeed && isNotLoginUrl,
         details: isLoggedIndeed && isNotLoginUrl ? 'Sesi aktif' : 'Belum login',
       };
-    } catch (e: any) {
+    } catch (_e: any) {
       results.indeed = { loggedIn: false, details: 'Gagal memuat halaman' };
     }
 

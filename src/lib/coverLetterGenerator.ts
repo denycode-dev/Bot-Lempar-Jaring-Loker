@@ -64,7 +64,7 @@ Buatkan surat pengantar singkat yang memikat sekarang:`;
       coverLetterCache.set(cacheKey, cleanLetter);
       return cleanLetter;
     }
-  } catch (e) {
+  } catch {
     // Fallback template jika offline atau AI timeout
   }
 

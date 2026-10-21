@@ -9,7 +9,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "knip": "knip"
+    "knip": "knip",
+    "quality": "knip && eslint"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.4.1",
@@ -24,12 +25,13 @@
     "clsx": "^2.1.1",
     "csv-parse": "^7.0.2",
     "csv-stringify": "^6.8.3",
-    "googleapis": "^176.0.0",
+    "drizzle-orm": "^0.45.4",
     "lucide-react": "^1.47.0",
     "mammoth": "^1.13.0",
     "next": "16.4.0",
     "openai": "^7.39.0",
     "playwright-core": "^1.60.0",
+    "postgres": "^3.4.9",
     "puppeteer": "^25.14.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -42,6 +44,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
     "javascript-obfuscator": "^5.7.0",

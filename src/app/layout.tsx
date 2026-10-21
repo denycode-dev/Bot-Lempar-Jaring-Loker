@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { AppShell } from "@/components/layout/AppShell";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -11,7 +12,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "AutoApply — Lamar Kerja Otomatis & AI Talent Scout",
-  description: "Platform automasi lamaran kerja multi-portal (LinkedIn, Glints, JobStreet, Indeed) & reverse talent scout cerdas",
+  description:
+    "Platform automasi lamaran kerja multi-portal (LinkedIn, Glints, JobStreet, Indeed) & reverse talent scout cerdas",
   icons: {
     icon: [
       { url: "/brand/favicon.ico", sizes: "any" },
@@ -32,10 +34,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-full flex flex-col font-sans">
-        {children}
+        <AppShell>{children}</AppShell>
         <Toaster position="top-center" richColors theme="system" />
       </body>
     </html>
   );
 }
-
