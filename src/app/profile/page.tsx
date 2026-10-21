@@ -14,7 +14,7 @@ import {
   Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { CvDiffDialog, DiffItem } from '@/components/modals/CvDiffDialog';
+import { CvDiffDialog, DiffItem, ScreeningQuestionItem } from '@/components/modals/CvDiffDialog';
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState({
@@ -42,7 +42,9 @@ export default function ProfilePage() {
   const [isDiffModalOpen, setIsDiffModalOpen] = useState(false);
   const [pendingParsedCv, setPendingParsedCv] = useState<any>(null);
   const [pendingDiffList, setPendingDiffList] = useState<DiffItem[]>([]);
-  const [selectedDiffFields, setSelectedDiffFields] = useState<Set<string>>(new Set());
+  const [pendingMissingFields, setPendingMissingFields] = useState<string[]>([]);
+  const [pendingScreeningQuestions, setPendingScreeningQuestions] = useState<ScreeningQuestionItem[]>([]);
+  const [pendingHonestyNotes, setPendingHonestyNotes] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -139,10 +141,14 @@ export default function ProfilePage() {
           cvAnalyzedAt: new Date().toISOString(),
         }));
 
-        // If AI parsed profile fields from CV, compute diff
+        // AI parsed profile, missing fields, and screening questions
         const parsedData = data.parsedCv || data.aiParsed;
         if (parsedData) {
           setPendingParsedCv(parsedData);
+          setPendingMissingFields(data.missingFields || []);
+          setPendingScreeningQuestions(data.screeningQuestions || []);
+          setPendingHonestyNotes(data.honestyNotes || []);
+
           const diffs: DiffItem[] = [
             {
               field: 'fullName',
@@ -153,33 +159,91 @@ export default function ProfilePage() {
             },
             {
               field: 'email',
-              label: 'Email',
+              label: 'Email Aktif',
               oldVal: profile.email,
               newVal: parsedData.email || '',
               willChange: Boolean(parsedData.email && parsedData.email !== profile.email),
             },
             {
               field: 'phoneNumber',
-              label: 'Nomor Telepon',
+              label: 'Nomor Telepon / WA',
               oldVal: profile.phoneNumber,
               newVal: parsedData.phoneNumber || '',
               willChange: Boolean(parsedData.phoneNumber && parsedData.phoneNumber !== profile.phoneNumber),
             },
             {
+              field: 'address',
+              label: 'Alamat / Domisili',
+              oldVal: profile.address,
+              newVal: parsedData.address || parsedData.domicile || '',
+              willChange: Boolean((parsedData.address || parsedData.domicile) && (parsedData.address || parsedData.domicile) !== profile.address),
+            },
+            {
+              field: 'educationLevel',
+              label: 'Pendidikan Terakhir',
+              oldVal: profile.educationLevel,
+              newVal: parsedData.educationLevel || '',
+              willChange: Boolean(parsedData.educationLevel && parsedData.educationLevel !== profile.educationLevel),
+            },
+            {
+              field: 'gpa',
+              label: 'IPK / GPA',
+              oldVal: profile.gpa,
+              newVal: parsedData.gpa ? String(parsedData.gpa) : '',
+              willChange: Boolean(parsedData.gpa && String(parsedData.gpa) !== profile.gpa),
+            },
+            {
+              field: 'yearsOfExperience',
+              label: 'Pengalaman Kerja (Tahun)',
+              oldVal: String(profile.yearsOfExperience),
+              newVal: parsedData.yearsOfExperience !== undefined ? String(parsedData.yearsOfExperience) : '',
+              willChange: Boolean(parsedData.yearsOfExperience !== undefined && Number(parsedData.yearsOfExperience) !== profile.yearsOfExperience),
+            },
+            {
+              field: 'expectedSalary',
+              label: 'Ekspektasi Gaji Bulanan (IDR)',
+              oldVal: profile.expectedSalary ? `Rp ${Number(profile.expectedSalary).toLocaleString('id-ID')}` : '',
+              newVal: parsedData.expectedSalary ? `Rp ${Number(parsedData.expectedSalary).toLocaleString('id-ID')}` : '',
+              willChange: Boolean(parsedData.expectedSalary && Number(parsedData.expectedSalary) !== profile.expectedSalary),
+            },
+            {
+              field: 'noticePeriod',
+              label: 'Ketersediaan (Notice Period)',
+              oldVal: profile.noticePeriod,
+              newVal: parsedData.noticePeriod || '',
+              willChange: Boolean(parsedData.noticePeriod && parsedData.noticePeriod !== profile.noticePeriod),
+            },
+            {
               field: 'skills',
-              label: 'Daftar Keahlian',
+              label: 'Daftar Keahlian Utama',
               oldVal: profile.skills,
               newVal: Array.isArray(parsedData.skills) ? parsedData.skills.join(', ') : (parsedData.skills || ''),
               willChange: Boolean(parsedData.skills),
             },
+            {
+              field: 'linkedinUrl',
+              label: 'LinkedIn URL',
+              oldVal: profile.linkedinUrl,
+              newVal: parsedData.linkedinUrl || '',
+              willChange: Boolean(parsedData.linkedinUrl && parsedData.linkedinUrl !== profile.linkedinUrl),
+            },
+            {
+              field: 'githubUrl',
+              label: 'GitHub URL',
+              oldVal: profile.githubUrl,
+              newVal: parsedData.githubUrl || '',
+              willChange: Boolean(parsedData.githubUrl && parsedData.githubUrl !== profile.githubUrl),
+            },
+            {
+              field: 'portfolioUrl',
+              label: 'Portfolio URL',
+              oldVal: profile.portfolioUrl,
+              newVal: parsedData.portfolioUrl || '',
+              willChange: Boolean(parsedData.portfolioUrl && parsedData.portfolioUrl !== profile.portfolioUrl),
+            },
           ];
 
           setPendingDiffList(diffs);
-          const preselect = new Set<string>();
-          diffs.forEach((d) => {
-            if (d.willChange && d.newVal) preselect.add(d.field);
-          });
-          setSelectedDiffFields(preselect);
           setIsDiffModalOpen(true);
         }
       } else {
@@ -193,28 +257,26 @@ export default function ProfilePage() {
     }
   };
 
-  const applyPendingDiff = () => {
-    if (!pendingParsedCv) return;
-    const updated = { ...profile };
-
-    if (selectedDiffFields.has('fullName') && pendingParsedCv.fullName) {
-      updated.fullName = pendingParsedCv.fullName;
+  const handleConfirmCvDiff = async (finalProfile: any, selectedQuestions: ScreeningQuestionItem[]) => {
+    const res = await fetch('/api/upload-cv/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        profile: finalProfile,
+        screeningQuestions: selectedQuestions,
+      }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setProfile((prev) => ({
+        ...prev,
+        ...finalProfile,
+      }));
+      setIsDiffModalOpen(false);
+      toast.success(data.message || 'Profil dan Bank Soal Kuesioner berhasil disimpan!');
+    } else {
+      throw new Error(data.error || 'Gagal menyimpan profil dan bank soal');
     }
-    if (selectedDiffFields.has('email') && pendingParsedCv.email) {
-      updated.email = pendingParsedCv.email;
-    }
-    if (selectedDiffFields.has('phoneNumber') && pendingParsedCv.phoneNumber) {
-      updated.phoneNumber = pendingParsedCv.phoneNumber;
-    }
-    if (selectedDiffFields.has('skills') && pendingParsedCv.skills) {
-      updated.skills = Array.isArray(pendingParsedCv.skills)
-        ? pendingParsedCv.skills.join(', ')
-        : pendingParsedCv.skills;
-    }
-
-    setProfile(updated);
-    setIsDiffModalOpen(false);
-    toast.success('Bidang profil berhasil diperbarui dari analisis CV!');
   };
 
   return (
@@ -429,10 +491,12 @@ export default function ProfilePage() {
           cvExtractedText={profile.cvExtractedText}
           cvAnalyzedAt={profile.cvAnalyzedAt}
           pendingParsedCv={pendingParsedCv}
+          currentProfile={profile}
           pendingDiffList={pendingDiffList}
-          selectedDiffFields={selectedDiffFields}
-          setSelectedDiffFields={setSelectedDiffFields}
-          onApplyPendingCvDiff={applyPendingDiff}
+          missingFields={pendingMissingFields}
+          screeningQuestions={pendingScreeningQuestions}
+          honestyNotes={pendingHonestyNotes}
+          onConfirm={handleConfirmCvDiff}
         />
       ) : null}
     </div>

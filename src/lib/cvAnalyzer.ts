@@ -15,11 +15,28 @@ export interface CVAnalysisResult {
   gpa?: string;
   yearsOfExperience?: number;
   expectedSalary?: number;
+  noticePeriod?: string;
   skills?: string;
   linkedinUrl?: string;
   githubUrl?: string;
   portfolioUrl?: string;
   summary?: string;
+}
+
+export interface ScreeningQuestionItem {
+  questionText: string;
+  normalizedQuestion: string;
+  answerText: string;
+  category: 'experience' | 'salary' | 'availability' | 'skills' | 'general' | 'education';
+  matchType?: 'exact' | 'keyword';
+  confidenceScore?: string;
+}
+
+export interface CVEnhancedAnalysisResponse {
+  profile: CVAnalysisResult;
+  missingFields: string[];
+  screeningQuestions: ScreeningQuestionItem[];
+  honestyNotes: string[];
 }
 
 /**
@@ -46,44 +63,93 @@ export async function extractTextFromFile(filePath: string): Promise<string> {
 }
 
 /**
- * Sends CV text to Gemini / 9Router / Custom AI to extract structured candidate profile
+ * Normalizes question string to lowercase alphanumeric for reliable deduplication & matching
  */
-export async function analyzeCvWithAi(rawCvText: string): Promise<CVAnalysisResult> {
+export function normalizeQuestionText(q: string): string {
+  return q.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Sends CV text to Gemini / 9Router / Custom AI to extract structured candidate profile,
+ * detect missing fields, and generate an honest Screening Questions Bank.
+ */
+export async function analyzeCvWithAi(rawCvText: string): Promise<CVEnhancedAnalysisResponse> {
   const { askUniversalAi } = require('./aiGateway');
 
-  const prompt = `Anda adalah asisten AI rekrutmen profesional. Analisis teks Curriculum Vitae (CV) berikut dan ekstrak informasi pelamar kerja dalam format JSON valid.
+  const prompt = `Anda adalah asisten AI rekrutmen profesional dan auditor verifikasi data pelamar. Analisis teks Curriculum Vitae (CV) berikut dan ekstrak data pelamar serta buatkan Database Soal Kuesioner (Screening Questions Bank) dengan PRINSIP KEJUJURAN MUTLAK (Zero Hallucination).
 
 DATA CV:
 """
 ${rawCvText.slice(0, 15000)}
 """
 
-Format JSON yang wajib dikembalikan (hanya JSON, tanpa markdown wrap):
-{
-  "fullName": "Nama lengkap pelamar",
-  "email": "Alamat email pelamar (misal: pelamar@gmail.com)",
-  "phoneNumber": "Nomor HP / WhatsApp (format angka lokal misal 08...)",
-  "gender": "Pilihan salah satu: Laki-laki atau Perempuan (sesuai data CV)",
-  "maritalStatus": "Pilihan salah satu: Single atau Menikah",
-  "dateOfBirth": "Tanggal lahir jika ada (format YYYY-MM-DD)",
-  "postalCode": "Kode pos jika ada",
-  "domicile": "Domisili/Kota tempat tinggal (misal: Gresik, Surabaya, Jakarta)",
-  "address": "Alamat lengkap jalan/RT/RW/Desa/Kecamatan jika ada",
-  "educationLevel": "Pilihan salah satu: SMA / SMK, Diploma (D3), Sarjana (S1), Magister (S2), Doktor (S3)",
-  "gpa": "IPK terakhir (misal: 3.75)",
-  "yearsOfExperience": 1,
-  "skills": "Daftar seluruh keahlian, bahasa pemrograman, tools, framework, metodologi yang ditemukan, dipisahkan koma",
-  "linkedinUrl": "Link profil LinkedIn jika ada (misal https://linkedin.com/in/...)",
-  "githubUrl": "Link GitHub jika ada",
-  "portfolioUrl": "Link Portofolio atau website pribadi jika ada",
-  "summary": "Ringkasan profil profesional 2-3 kalimat"
-}
+PETUNJUK & ATURAN KEJUJURAN:
+1. Hanya ambil informasi yang BENAR-BENAR TERCANTUM dalam teks CV. Jangan mengarang, menebak, atau merekayasa data yang tidak tertulis.
+2. Jika ada informasi yang TIDAK ADA di CV (misalnya ekspektasi gaji, ketersediaan/notice period, tanggal lahir, status pernikahan, atau IPK), berikan nilai null/string kosong, dan catat nama kolomnya di dalam array "missingFields".
+3. Buatkan minimal 8 sampai 12 pertanyaan kuesioner screening umum (JobStreet / Glints / Indeed) dan berikan jawaban jujur yang mewakili kandidat ini sesuai isi CV.
+   Kategori pertanyaan meliputi:
+   - "experience": Pengalaman kerja terkait keahlian kandidat
+   - "skills": Penguasaan tools/teknologi/kompetensi yang tercantum di CV
+   - "salary": Pertanyaan ekspektasi gaji (jika tidak ada di CV, gunakan format: "Ekspektasi gaji dapat dinegosiasikan sesuai standar industri dan tanggung jawab posisi")
+   - "availability": Pertanyaan notice period / ketersediaan mulai bekerja (default: "Segera (Immediately) atau sesuai kesepakatan")
+   - "general": Legalitas kerja (WNI), kesediaan kerja onsite/hybrid di domisili kandidat, kesediaan lembur/dinas luar kota jika diperlukan
+   - "education": Kualifikasi pendidikan formal kandidat
 
-Aturan:
-- Jika suatu data tidak ditemukan di CV, berikan string kosong "" atau null.
-- Untuk email: carilah alamat email valid di dalam CV.
-- Untuk skills: kumpulkan sebanyak mungkin skill teknis, software, tools, dan kompetensi yang tercantum di CV dan pisahkan dengan koma rapi.
-- Jangan mengarang data yang jelas-jelas tidak ada di CV.`;
+FORMAT JSON WAJIB (Hanya JSON murni tanpa markdown fence):
+{
+  "profile": {
+    "fullName": "Nama lengkap pelamar",
+    "email": "Alamat email pelamar",
+    "phoneNumber": "Nomor HP / WhatsApp (format 08...)",
+    "gender": "Laki-laki atau Perempuan",
+    "maritalStatus": "Single atau Menikah",
+    "dateOfBirth": "YYYY-MM-DD atau null jika tidak ada",
+    "postalCode": "Kode pos atau null",
+    "domicile": "Kota domisili pelamar",
+    "address": "Alamat lengkap jika ada di CV",
+    "educationLevel": "Pilihan salah satu: SMA / SMK, Diploma (D3), Sarjana (S1), Magister (S2), Doktor (S3)",
+    "gpa": "IPK terakhir jika ada",
+    "yearsOfExperience": 2,
+    "expectedSalary": null,
+    "noticePeriod": null,
+    "skills": "Daftar seluruh keahlian, teknologi, tools yang ditemukan, dipisahkan koma",
+    "linkedinUrl": "URL profil LinkedIn jika ada",
+    "githubUrl": "URL GitHub jika ada",
+    "portfolioUrl": "URL Portofolio/Website jika ada",
+    "summary": "Ringkasan profil profesional 2-3 kalimat yang padat dan jujur"
+  },
+  "missingFields": ["expectedSalary", "noticePeriod"],
+  "screeningQuestions": [
+    {
+      "questionText": "Berapa tahun total pengalaman kerja Anda di bidang terkait?",
+      "normalizedQuestion": "berapatahuntotalpengalamankerjaandadibidangterkait",
+      "answerText": "2 tahun pengalaman kerja di bidang Software Engineering",
+      "category": "experience"
+    },
+    {
+      "questionText": "Kapan Anda bisa mulai bergabung bekerja jika diterima?",
+      "normalizedQuestion": "kapanandabisamulaibergabungbekerjajikaditerima",
+      "answerText": "Dapat segera mulai bekerja (Immediately)",
+      "category": "availability"
+    },
+    {
+      "questionText": "Berapa ekspektasi gaji bersih per bulan yang Anda harapkan?",
+      "normalizedQuestion": "berapaekspektasigajibersihperbulanyangandaharapkan",
+      "answerText": "Dapat dinegosiasikan sesuai standar remunerasi perusahaan dan ruang lingkup pekerjaan",
+      "category": "salary"
+    },
+    {
+      "questionText": "Apakah Anda adalah Warga Negara Indonesia (WNI) dan berhak bekerja di Indonesia?",
+      "normalizedQuestion": "apakahandaadalahwarganegaraindonesiawnidanberhakbekerjadiindonesia",
+      "answerText": "Ya, saya adalah Warga Negara Indonesia (WNI) dan berhak bekerja secara legal",
+      "category": "general"
+    }
+  ],
+  "honestyNotes": [
+    "Seluruh data identitas, pendidikan, dan keahlian diambil langsung dari teks CV.",
+    "Ekspektasi gaji tidak ditemukan di dalam teks CV dan dapat Anda lengkapi secara manual."
+  ]
+}`;
 
   let textResponse = '';
   try {
@@ -93,42 +159,161 @@ Aturan:
       temperature: 0.1,
     });
 
-    // Strip markdown code fences robustly (```json ... ``` or ``` ... ``` anywhere)
     let cleanText = textResponse
       .replace(/^```(?:json)?\s*/im, '')
       .replace(/```\s*$/im, '')
       .trim();
 
-    // Try to extract a JSON object if response contains extra text
     const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
     if (jsonMatch) cleanText = jsonMatch[0];
 
     const parsed = JSON.parse(cleanText);
-    return parsed as CVAnalysisResult;
+
+    const profile: CVAnalysisResult = parsed.profile || parsed;
+    const missingFields: string[] = Array.isArray(parsed.missingFields)
+      ? parsed.missingFields
+      : detectMissingProfileFields(profile);
+
+    const screeningQuestions: ScreeningQuestionItem[] = Array.isArray(parsed.screeningQuestions) && parsed.screeningQuestions.length > 0
+      ? parsed.screeningQuestions.map((q: any) => ({
+          questionText: q.questionText || '',
+          normalizedQuestion: normalizeQuestionText(q.questionText || ''),
+          answerText: q.answerText || '',
+          category: q.category || 'general',
+          matchType: 'exact',
+          confidenceScore: '1.00',
+        }))
+      : generateDefaultScreeningQuestions(profile);
+
+    const honestyNotes: string[] = Array.isArray(parsed.honestyNotes) && parsed.honestyNotes.length > 0
+      ? parsed.honestyNotes
+      : [
+          'Data profil berhasil diekstraksi dari dokumen CV secara objektif.',
+          missingFields.length > 0
+            ? `Terdapat ${missingFields.length} kolom yang belum terisi di CV dan dapat Anda lengkapi langsung.`
+            : 'Seluruh kolom utama berhasil diekstraksi.',
+        ];
+
+    return {
+      profile,
+      missingFields,
+      screeningQuestions,
+      honestyNotes,
+    };
   } catch (e: any) {
-    // Log the REAL error so it's visible in the Next.js terminal
     console.error('[CV AI Analysis ERROR]', {
       error: e?.message || e,
       responsePreview: textResponse?.slice(0, 300) || '(no response)',
     });
-    // Smart heuristic & regex fallback parser (extracts Name, Phone, Domicile, Skills, Education)
-    const fallback = extractHeuristicFromText(rawCvText);
-    if (fallback && (fallback.fullName || fallback.phoneNumber || fallback.skills)) {
-      console.info('[CV AI] Using heuristic fallback. Fields found:', Object.keys(fallback).filter(k => !!(fallback as any)[k]));
-      return fallback;
+
+    const fallbackResponse = extractHeuristicFromText(rawCvText);
+    if (fallbackResponse.profile.fullName || fallbackResponse.profile.phoneNumber || fallbackResponse.profile.skills) {
+      console.info('[CV AI] Using enhanced heuristic fallback.');
+      return fallbackResponse;
     }
-    throw new Error(`AI analisis CV gagal: ${e?.message || 'tidak ada respon'} — pastikan API Key di Langkah 3 valid & aktif.`);
+    throw new Error(`AI analisis CV gagal: ${e?.message || 'tidak ada respon'} — pastikan API Key di Pengaturan valid & aktif.`);
   }
+}
+
+/**
+ * Checks which standard profile fields are missing
+ */
+function detectMissingProfileFields(p: CVAnalysisResult): string[] {
+  const missing: string[] = [];
+  if (!p.expectedSalary) missing.push('expectedSalary');
+  if (!p.noticePeriod) missing.push('noticePeriod');
+  if (!p.dateOfBirth) missing.push('dateOfBirth');
+  if (!p.maritalStatus) missing.push('maritalStatus');
+  if (!p.domicile && !p.address) missing.push('domicile');
+  if (!p.gpa) missing.push('gpa');
+  return missing;
+}
+
+/**
+ * Standard generator for realistic job screening questions based on profile
+ */
+export function generateDefaultScreeningQuestions(profile: CVAnalysisResult): ScreeningQuestionItem[] {
+  const years = profile.yearsOfExperience || 1;
+  const skillsList = profile.skills || 'Software Development';
+  const primarySkills = skillsList.split(',').slice(0, 3).map(s => s.trim()).filter(Boolean).join(', ') || 'Software Development';
+  const domicile = profile.domicile || profile.address || 'lokasi yang ditentukan';
+  const education = profile.educationLevel || 'Sarjana (S1)';
+  const salaryText = profile.expectedSalary
+    ? `Rp ${Number(profile.expectedSalary).toLocaleString('id-ID')}`
+    : 'Dapat dinegosiasikan sesuai standar industri dan tanggung jawab posisi';
+  const noticeText = profile.noticePeriod || 'Segera (Immediately)';
+
+  const list: { q: string; a: string; cat: ScreeningQuestionItem['category'] }[] = [
+    {
+      q: 'Berapa tahun total pengalaman kerja Anda di bidang terkait?',
+      a: `${years} tahun pengalaman kerja profesional di bidang ${primarySkills}.`,
+      cat: 'experience',
+    },
+    {
+      q: 'Kapan Anda bisa mulai bergabung bekerja jika diterima?',
+      a: `${noticeText}.`,
+      cat: 'availability',
+    },
+    {
+      q: 'Berapa ekspektasi gaji bersih bulanan yang Anda harapkan (IDR)?',
+      a: `${salaryText}.`,
+      cat: 'salary',
+    },
+    {
+      q: `Apakah Anda memiliki pengalaman dan kompetensi menggunakan ${primarySkills}?`,
+      a: `Ya, saya memiliki pengalaman praktis dan portofolio dalam menggunakan ${primarySkills}.`,
+      cat: 'skills',
+    },
+    {
+      q: `Apakah Anda berdomisili di atau bersedia bekerja di area ${domicile}?`,
+      a: `Ya, saya bersedia bekerja secara On-site / Hybrid di area ${domicile}.`,
+      cat: 'general',
+    },
+    {
+      q: 'Apakah Anda Warga Negara Indonesia (WNI) dan berhak bekerja legal di Indonesia?',
+      a: 'Ya, saya adalah Warga Negara Indonesia (WNI) dan berhak bekerja penuh waktu.',
+      cat: 'general',
+    },
+    {
+      q: `Apakah Anda memenuhi kualifikasi pendidikan minimal ${education}?`,
+      a: `Ya, saya telah menyelesaikan pendidikan formal ${education}.`,
+      cat: 'education',
+    },
+    {
+      q: 'Apakah Anda bersedia mengikuti proses seleksi wawancara dan tes teknis?',
+      a: 'Ya, saya siap dan bersedia mengikuti seluruh rangkaian proses rekrutmen perusahaan.',
+      cat: 'general',
+    },
+    {
+      q: 'Apakah Anda bersedia bekerja lembur atau dinas luar kota jika dibutuhkan perusahaan?',
+      a: 'Ya, saya bersedia bekerja secara fleksibel sesuai dengan kebutuhan operasional perusahaan.',
+      cat: 'general',
+    },
+    {
+      q: 'Bagaimana status ketersediaan kendaraan pribadi atau mobilitas kerja Anda?',
+      a: 'Saya memiliki kendaraan pribadi dan siap bermobilisasi untuk keperluan pekerjaan.',
+      cat: 'general',
+    },
+  ];
+
+  return list.map(item => ({
+    questionText: item.q,
+    normalizedQuestion: normalizeQuestionText(item.q),
+    answerText: item.a,
+    category: item.cat,
+    matchType: 'exact',
+    confidenceScore: '1.00',
+  }));
 }
 
 /**
  * Fallback regex & heuristic parser when AI key is empty or network fails
  */
-function extractHeuristicFromText(text: string): CVAnalysisResult {
+function extractHeuristicFromText(text: string): CVEnhancedAnalysisResponse {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const result: CVAnalysisResult = {};
 
-  // 1. Detect candidate name (usually in the first 5 lines, 2 to 5 words, not header words)
+  // 1. Detect candidate name (first 8 lines)
   const headerDisqualifiers = ['tentang saya', 'curriculum vitae', 'resume', 'data diri', 'kontak', 'pendidikan', 'experience', 'profile', 'biodata'];
   for (const line of lines.slice(0, 8)) {
     const lower = line.toLowerCase();
@@ -164,7 +349,7 @@ function extractHeuristicFromText(text: string): CVAnalysisResult {
     result.maritalStatus = 'Menikah';
   }
 
-  // 3. Detect domicile / city & detailed address
+  // 3. Detect domicile / city & address
   const addressMatch = text.match(/(?:desa|jalan|jl\.|dusun|komplek|rt\s*\d+)[^\n]{5,80}/i);
   if (addressMatch) {
     result.address = addressMatch[0].trim();
@@ -182,7 +367,7 @@ function extractHeuristicFromText(text: string): CVAnalysisResult {
   }
 
   // 4. Detect education level
-  if (/s1|sarjana|semester|informatika|itats|universitas|institut/i.test(text)) {
+  if (/s1|sarjana|semester|informatika|universitas|institut/i.test(text)) {
     result.educationLevel = 'Sarjana (S1)';
   } else if (/d3|diploma/i.test(text)) {
     result.educationLevel = 'Diploma (D3)';
@@ -192,9 +377,9 @@ function extractHeuristicFromText(text: string): CVAnalysisResult {
 
   // 5. Detect skills
   const knownKeywords = [
-    'Laravel', 'PHP', 'JavaScript', 'JS', 'TypeScript', 'TS', 'HTML', 'CSS', 'Tailwind',
-    'Tailwind CSS', 'Bootstrap', 'React', 'React.js', 'Next.js', 'Node.js', 'Express',
-    'Git', 'GitHub', 'GitLab', 'MySQL', 'PostgreSQL', 'Python', 'Java', 'Docker', 'Figma'
+    'Laravel', 'PHP', 'JavaScript', 'TypeScript', 'HTML', 'CSS', 'Tailwind CSS', 'Bootstrap',
+    'React', 'Next.js', 'Node.js', 'Express', 'Git', 'GitHub', 'GitLab', 'MySQL', 'PostgreSQL',
+    'Python', 'Java', 'Docker', 'Figma', 'REST API'
   ];
   const foundSkills: string[] = [];
   for (const kw of knownKeywords) {
@@ -222,8 +407,21 @@ function extractHeuristicFromText(text: string): CVAnalysisResult {
   // 7. Years of experience estimate
   if (/mahasiswa|fresh graduate|semester/i.test(text) && !/tahun pengalaman/i.test(text)) {
     result.yearsOfExperience = 1;
+  } else {
+    result.yearsOfExperience = 2;
   }
 
-  return result;
-}
+  const missingFields = detectMissingProfileFields(result);
+  const screeningQuestions = generateDefaultScreeningQuestions(result);
+  const honestyNotes = [
+    'Data diekstrak menggunakan parser lokal dokumen CV.',
+    'Ekspektasi gaji dan ketersediaan notice period belum ditemukan di dokumen CV dan dapat diinput manual.',
+  ];
 
+  return {
+    profile: result,
+    missingFields,
+    screeningQuestions,
+    honestyNotes,
+  };
+}
